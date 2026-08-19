@@ -17,18 +17,18 @@ const SIMPLIFIED_MAP: Record<string, string> = {
   'voice clone detected': 'This voice may not be from a real person',
   'spoof': 'The voice sounds artificially created',
 
-  // Coercion / NLP
-  'coercive language': 'The caller is using threatening or pressuring language',
-  'coercive transcript': 'Threatening words were detected in the conversation',
+  // Specific Coercion / Scams (checked first)
   'arrest warrant': 'The caller mentioned arrest — this is a common scam tactic',
+  'account freeze notice': 'A fake "Account Freeze" notice was shown to you',
   'account freeze': 'The caller is threatening to freeze your account',
   'aadhaar': 'The caller mentioned your Aadhaar — be very careful',
   'immediate transfer': 'You are being pressured to send money immediately',
+  'coercive language': 'The caller is using threatening or pressuring language',
+  'coercive transcript': 'Threatening words were detected in the conversation',
 
   // OCR
-  'ocr': 'A suspicious document or notice was detected on screen',
-  'account freeze notice': 'A fake "Account Freeze" notice was shown to you',
   'fake document': 'A fake official document was detected',
+  'ocr': 'A suspicious document or notice was detected on screen',
 
   // Beneficiary
   'new beneficiary': 'You have never sent money to this person before',
