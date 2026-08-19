@@ -1,0 +1,83 @@
+# ─── Python ───────────────────────────────────────────────────────────────────
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+guardpay_env/
+venv/
+env/
+ENV/
+*.egg-info/
+dist/
+build/
+*.egg
+.eggs/
+pip-log.txt
+pip-delete-this-directory.txt
+.pytest_cache/
+.mypy_cache/
+.dmypy.json
+*.cover
+.coverage
+htmlcov/
+*.log
+
+# ─── Environment & Secrets ────────────────────────────────────────────────────
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+secrets/
+certs/
+
+# ─── Evidence Bundles (encrypted, device-local) ───────────────────────────────
+evidence/
+
+# ─── Node / React Native ──────────────────────────────────────────────────────
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnp
+.pnp.js
+.yarn/
+frontend/.expo/
+frontend/ios/build/
+frontend/android/build/
+frontend/android/.gradle/
+frontend/android/local.properties
+frontend/*.jks
+frontend/*.keystore
+frontend/ios/Pods/
+
+# ─── Dart / Flutter ───────────────────────────────────────────────────────────
+.dart_tool/
+.flutter-plugins
+.flutter-plugins-dependencies
+.packages
+pubspec.lock
+build/
+
+# ─── Data / Models (large files) ──────────────────────────────────────────────
+data/asvspoof/
+*.pt
+*.onnx
+*.h5
+*.pkl
+*.model
+# allow mock data
+!data/mock/
+
+# ─── IDE & OS ─────────────────────────────────────────────────────────────────
+.vscode/
+.idea/
+*.swp
+*.swo
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# ─── Docs temp extracts ───────────────────────────────────────────────────────
+Docs/*.txt

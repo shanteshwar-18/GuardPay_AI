@@ -1,0 +1,7 @@
+# Mock data for demo scenarios — safe to commit
+
+# data/mock/
+# ├── mock_transactions.json      — sample UPI transaction payloads
+# ├── mock_audio_base64.txt       — short base64-encoded PCM for testing audio pipeline
+# ├── mock_ocr_inputs/            — sample screen captures with scam phrases
+# └── scam_phrases_template.json  — coercive phrase dictionary (multilingual)
