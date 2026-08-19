@@ -27,7 +27,7 @@ import { RiskFactorList } from '../components/RiskFactorList';
 import { speak, stopSpeaking } from '../services/tts';
 import { formatINRCompact } from '../services/format';
 import { useSeniorMode } from '../context/SeniorModeContext';
-import { NAVY, HOLD_RED, NEUTRAL_LIGHT, WHITE, CARD_SURFACE } from '../theme/colors';
+import { NAVY, HOLD_RED, NEUTRAL_LIGHT, WHITE, NAVY_LIGHT } from '../theme/colors';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'Hold'>;
 
@@ -140,7 +140,7 @@ export function HoldScreen({ route, navigation }: Props) {
 
         {/* Risk Factor Breakdown */}
         <View style={styles.factorsSection}>
-          <RiskFactorList factors={explanation} />
+          <RiskFactorList factors={explanation} variant="intercept" />
         </View>
 
         {/* Step-Up Verification */}
@@ -195,7 +195,7 @@ const styles = StyleSheet.create({
   verifySubtitle: { fontSize: 13, color: NEUTRAL_LIGHT, marginBottom: 16 },
   evidenceNotice: {
     flexDirection: 'row',
-    backgroundColor: CARD_SURFACE,
+    backgroundColor: NAVY_LIGHT,
     borderRadius: 12,
     padding: 14,
     width: '100%',
