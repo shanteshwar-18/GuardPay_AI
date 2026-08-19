@@ -1,8 +1,10 @@
 fastapi
 uvicorn[standard]
 pydantic
+pydantic-settings
 websockets
 pymongo
+motor
 supabase
 librosa
 torch
@@ -15,7 +17,9 @@ groq
 twilio
 cryptography
 pillow
+pytesseract
 pytest
+pytest-asyncio
 httpx
 numpy
 pandas
@@ -23,3 +27,4 @@ faker
 python-multipart
 python-dotenv
 soundfile
+pybloom-live

@@ -1,9 +1,7 @@
 /**
- * GuardPay AI — AppNavigator
- * Full payment-flow navigation stack.
+ * GuardPay AI — AppNavigator (Unified)
+ * Full payment-flow navigation stack + Senior Citizen Mode + Emergency Contact.
  * Route: Home → Beneficiary → Amount → RiskEval → Pin | Warning | Hold | Intercept
- *
- * SimulatedCallBanner is rendered as a shared header on every screen (demo overlay).
  */
 
 import React, { useState } from 'react';
@@ -13,12 +11,13 @@ import { createNativeStackNavigator } from '@react-navigation/native-stack';
 
 import { RootStackParamList } from '../types/navigation';
 import { SimulatedCallBanner } from '../components/SimulatedCallBanner';
+import { SeniorModeBanner } from '../components/SeniorModeBanner';
+import { EmergencyContactButton } from '../components/EmergencyContactButton';
 import { NAVY } from '../theme/colors';
 
 // Screen imports
 import { HomeScreen } from '../screens/HomeScreen';
 import { BeneficiaryScreen } from '../screens/BeneficiaryScreen';
-// Dev-only screenshot harness
 import { ScreenshotHarness } from '../screens/__dev__/ScreenshotHarness';
 import { AmountScreen } from '../screens/AmountScreen';
 import { RiskEvalScreen } from '../screens/RiskEvalScreen';
@@ -31,11 +30,14 @@ const Stack = createNativeStackNavigator<RootStackParamList>();
 
 export function AppNavigator() {
   // Toggle: false for Scenario A (green path), true for Scenario B/C (fraud scenarios)
-  const [isCallActive, setIsCallActive] = useState(true);
+  const [isCallActive, _setIsCallActive] = useState(true);
 
   return (
     <NavigationContainer>
       <View style={styles.root}>
+        {/* Senior Mode Banner — high-visibility accessibility indicator */}
+        <SeniorModeBanner />
+
         {/* Fraud call overlay — visible on every screen during the demo */}
         <SimulatedCallBanner isCallActive={isCallActive} />
 
@@ -66,6 +68,9 @@ export function AppNavigator() {
             <Stack.Screen name="ScreenshotHarness" component={ScreenshotHarness} />
           )}
         </Stack.Navigator>
+
+        {/* Persistent Emergency Family Contact FAB (visible in Senior Mode) */}
+        <EmergencyContactButton />
       </View>
     </NavigationContainer>
   );

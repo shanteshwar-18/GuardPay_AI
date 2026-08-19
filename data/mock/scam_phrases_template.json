@@ -1,0 +1,57 @@
+{
+  "scam_phrases": {
+    "en": [
+      "Arrest Warrant",
+      "Account Freeze",
+      "CBI Notice",
+      "ED Investigation",
+      "Income Tax Notice",
+      "Digital Arrest",
+      "RBI Order",
+      "Court Notice",
+      "Police Complaint",
+      "Secure Account",
+      "Freeze Account",
+      "Illegal Activity",
+      "Cybercrime Branch",
+      "FIR Registered",
+      "Immediate Transfer Required",
+      "Your account will be blocked",
+      "Government official",
+      "Narcotics Control"
+    ],
+    "hi": [
+      "गिरफ्तार",
+      "खाता बंद",
+      "तुरंत ट्रांसफर",
+      "सीबीआई नोटिस",
+      "आयकर विभाग",
+      "जुर्माना",
+      "अवैध गतिविधि",
+      "न्यायालय का आदेश"
+    ],
+    "mr": [
+      "अटक",
+      "खाते गोठवा",
+      "तातडीने",
+      "न्यायालय"
+    ],
+    "ta": [
+      "கைது",
+      "கணக்கு முடக்கம்",
+      "உடனடி பரிமாற்றம்"
+    ],
+    "te": [
+      "అరెస్ట్",
+      "అకౌంట్ ఫ్రీజ్",
+      "వెంటనే బదిలీ"
+    ],
+    "bn": [
+      "গ্রেপ্তার",
+      "অ্যাকাউন্ট ফ্রিজ",
+      "তাৎক্ষণিক স্থানান্তর"
+    ]
+  },
+  "version": "1.0",
+  "last_updated": "2026-08-19"
+}
