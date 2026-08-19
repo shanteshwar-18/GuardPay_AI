@@ -10,10 +10,10 @@ module.exports = {
     '^.+\\.(js|jsx|ts|tsx)$': 'babel-jest',
   },
   testMatch: ['**/__tests__/**/*.(test|spec).(ts|tsx|js)'],
-  setupFilesAfterFramework: ['@testing-library/react-native/extend-expect'],
+  setupFilesAfterEnv: ['@testing-library/react-native/extend-expect'],
   moduleNameMapper: {
     '^axios$': '<rootDir>/src/__mocks__/axios.ts',
-    '^../services/audioStream$': '<rootDir>/src/__mocks__/audioStream.ts',
+    'audioStream': '<rootDir>/src/__mocks__/audioStream.ts',
     '^react-native-tts$': '<rootDir>/src/__mocks__/react-native-tts.ts',
     '^@react-native-async-storage/async-storage$':
       '<rootDir>/src/__mocks__/async-storage.ts',
