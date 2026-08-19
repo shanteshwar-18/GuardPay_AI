@@ -18,6 +18,8 @@ import { NAVY } from '../theme/colors';
 // Screen imports
 import { HomeScreen } from '../screens/HomeScreen';
 import { BeneficiaryScreen } from '../screens/BeneficiaryScreen';
+// Dev-only screenshot harness
+import { ScreenshotHarness } from '../screens/__dev__/ScreenshotHarness';
 import { AmountScreen } from '../screens/AmountScreen';
 import { RiskEvalScreen } from '../screens/RiskEvalScreen';
 import { PinScreen } from '../screens/PinScreen';
@@ -59,6 +61,10 @@ export function AppNavigator() {
               gestureEnabled: false, // No swipe-back from Intercept screen
             }}
           />
+          {/* Dev-only: Screenshot Harness — never shown in production */}
+          {__DEV__ && (
+            <Stack.Screen name="ScreenshotHarness" component={ScreenshotHarness} />
+          )}
         </Stack.Navigator>
       </View>
     </NavigationContainer>

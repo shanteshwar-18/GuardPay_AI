@@ -59,4 +59,6 @@ export type RootStackParamList = {
     explanation: RiskFactor[];
     transactionId?: string;
   };
+  // Dev-only: Screenshot harness — absent in production builds
+  ScreenshotHarness: undefined;
 };
