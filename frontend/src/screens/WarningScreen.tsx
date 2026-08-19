@@ -32,27 +32,8 @@ import ExplanationList from '../components/ExplanationList';
 import TTSControl from '../components/TTSControl';
 import { warn, stopSpeech, SupportedLanguage } from '../services/tts';
 
-// MOCK — remove once RiskEvalScreen wiring lands
-const MOCK_RISK_RESPONSE: RiskScoreResponse = {
-  score: 55,
-  tier: 'WARNING',
-  explanation: [
-    'Voice anomaly detected: +25 pts',
-    'New beneficiary (first-time payee): +15 pts',
-    'Coercive language patterns: +15 pts',
-  ],
-  factors: {
-    audio: 0.5,
-    text: 0.3,
-    new_beneficiary: 1.0,
-    reputation: 0.2,
-    ocr: 0.0,
-    device: 0.1,
-  },
-};
-
 interface WarningScreenProps {
-  riskResponse?: RiskScoreResponse;
+  riskResponse: RiskScoreResponse;
   onProceed?: () => void;
   onCancel?: () => void;
   /** Detected language for TTS — defaults to EN */
@@ -60,7 +41,7 @@ interface WarningScreenProps {
 }
 
 export default function WarningScreen({
-  riskResponse = MOCK_RISK_RESPONSE,
+  riskResponse,
   onProceed,
   onCancel,
   detectedLanguage = 'EN',

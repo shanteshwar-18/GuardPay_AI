@@ -33,31 +33,10 @@ import NumericInput from '../components/NumericInput';
 import TTSControl from '../components/TTSControl';
 import { warn, stopSpeech, SupportedLanguage } from '../services/tts';
 
-// MOCK — remove once RiskEvalScreen wiring lands
-const MOCK_RISK_RESPONSE: RiskScoreResponse = {
-  score: 78,
-  tier: 'ADAPTIVE_HOLD',
-  explanation: [
-    'Voice anomaly detected: +25 pts',
-    'Coercive language patterns: +20 pts',
-    'New beneficiary (first-time payee): +15 pts',
-    'Device behaviour anomaly: +18 pts',
-  ],
-  factors: {
-    audio: 0.8,
-    text: 0.7,
-    new_beneficiary: 1.0,
-    reputation: 0.3,
-    ocr: 0.0,
-    device: 0.6,
-  },
-  evidence_bundle_id: 'evt_demo_001',
-};
-
 const HOLD_DURATION_SECONDS = 30;
 
 interface HoldScreenProps {
-  riskResponse?: RiskScoreResponse;
+  riskResponse: RiskScoreResponse;
   onTimerExpired?: () => void;
   onVerified?: () => void;
   /** Detected language for TTS — defaults to EN */
@@ -65,7 +44,7 @@ interface HoldScreenProps {
 }
 
 export default function HoldScreen({
-  riskResponse = MOCK_RISK_RESPONSE,
+  riskResponse,
   onTimerExpired,
   onVerified,
   detectedLanguage = 'EN',

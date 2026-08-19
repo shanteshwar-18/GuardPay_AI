@@ -17,16 +17,8 @@ import {
 import { RiskScoreResponse } from '../types';
 import { colors, typography, spacing, radius, TIER_COLORS } from '../theme';
 
-// MOCK — remove once RiskEvalScreen wiring lands
-const MOCK_RISK_RESPONSE: RiskScoreResponse = {
-  score: 15,
-  tier: 'ALLOWED',
-  explanation: [],
-  factors: {},
-};
-
 interface PINScreenProps {
-  riskResponse?: RiskScoreResponse;
+  riskResponse: RiskScoreResponse;
   onSuccess?: () => void;
   onCancel?: () => void;
 }
@@ -35,7 +27,7 @@ const PIN_LENGTH = 6;
 const KEYS = ['1', '2', '3', '4', '5', '6', '7', '8', '9', '', '0', '⌫'];
 
 export default function PINScreen({
-  riskResponse = MOCK_RISK_RESPONSE,
+  riskResponse,
   onSuccess,
   onCancel,
 }: PINScreenProps) {

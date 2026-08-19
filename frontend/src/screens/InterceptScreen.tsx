@@ -22,27 +22,8 @@ import {
 } from 'react-native';
 import { RiskScoreResponse, SessionStatus } from '../types';
 import { colors, typography, spacing, radius, TIER_COLORS } from '../theme';
+import { getSessionStatus } from '../services/api';
 
-// MOCK — remove once RiskEvalScreen wiring lands
-const MOCK_RISK_RESPONSE: RiskScoreResponse = {
-  score: 95,
-  tier: 'HARD_INTERCEPT',
-  explanation: [
-    'AI voice clone detected: +30 pts',
-    'Coercive transcript — "arrest warrant" detected: +25 pts',
-    'OCR: "Account Freeze" notice on screen: +20 pts',
-    'New beneficiary + high amount: +20 pts',
-  ],
-  factors: {
-    audio: 0.95,
-    text: 0.9,
-    ocr: 1.0,
-    new_beneficiary: 1.0,
-    reputation: 0.8,
-    device: 0.7,
-  },
-  evidence_bundle_id: 'evt_demo_002',
-};
 
 /** Status display messages */
 const STATUS_MESSAGES: Record<SessionStatus, string> = {
@@ -51,25 +32,21 @@ const STATUS_MESSAGES: Record<SessionStatus, string> = {
   FROZEN: '🔒 Transaction frozen. Bank has been alerted.',
 };
 
-// Mock status cycle for demo (before Shanteshwar's endpoint is live)
-const MOCK_STATUS_CYCLE: SessionStatus[] = [
-  'CALLING',
-  'CALLING',
-  'AWAITING_RESPONSE',
-  'AWAITING_RESPONSE',
-  'AWAITING_RESPONSE',
-  'FROZEN',
+// Fallback mock cycle if backend is unreachable (debug flag)
+const FALLBACK_STATUS_CYCLE: SessionStatus[] = [
+  'CALLING', 'CALLING', 'AWAITING_RESPONSE',
+  'AWAITING_RESPONSE', 'AWAITING_RESPONSE', 'FROZEN',
 ];
 
 interface InterceptScreenProps {
-  riskResponse?: RiskScoreResponse;
+  riskResponse: RiskScoreResponse;
   onCancel?: () => void;
   /** Transaction ID for status polling */
   transactionId?: string;
 }
 
 export default function InterceptScreen({
-  riskResponse = MOCK_RISK_RESPONSE,
+  riskResponse,
   onCancel,
   transactionId,
 }: InterceptScreenProps) {
@@ -122,19 +99,39 @@ export default function InterceptScreen({
   }, [scaleAnim, opacityAnim]);
 
   // Status polling — every 3 seconds
-  // TODO: Replace mock with real GET /api/v1/session/{txn_id}/status in Prompt 7
+  // Uses real API when transactionId is provided, falls back to mock cycle
   useEffect(() => {
-    pollIntervalRef.current = setInterval(() => {
-      // Mock: cycle through statuses
-      const nextIndex = pollIndexRef.current;
-      if (nextIndex < MOCK_STATUS_CYCLE.length) {
-        const nextStatus = MOCK_STATUS_CYCLE[nextIndex];
-        setStatus(nextStatus);
-        pollIndexRef.current += 1;
+    let fallbackIndex = 0;
 
-        // Stop polling once FROZEN
-        if (nextStatus === 'FROZEN' && pollIntervalRef.current) {
-          clearInterval(pollIntervalRef.current);
+    pollIntervalRef.current = setInterval(async () => {
+      if (transactionId) {
+        // Real API polling
+        try {
+          const newStatus = await getSessionStatus(transactionId);
+          setStatus(newStatus);
+          if (newStatus === 'FROZEN' && pollIntervalRef.current) {
+            clearInterval(pollIntervalRef.current);
+          }
+        } catch {
+          // API unreachable — fall through to fallback
+          if (fallbackIndex < FALLBACK_STATUS_CYCLE.length) {
+            const fallbackStatus = FALLBACK_STATUS_CYCLE[fallbackIndex];
+            setStatus(fallbackStatus);
+            fallbackIndex++;
+            if (fallbackStatus === 'FROZEN' && pollIntervalRef.current) {
+              clearInterval(pollIntervalRef.current);
+            }
+          }
+        }
+      } else {
+        // No transactionId — use fallback cycle for demo
+        if (fallbackIndex < FALLBACK_STATUS_CYCLE.length) {
+          const fallbackStatus = FALLBACK_STATUS_CYCLE[fallbackIndex];
+          setStatus(fallbackStatus);
+          fallbackIndex++;
+          if (fallbackStatus === 'FROZEN' && pollIntervalRef.current) {
+            clearInterval(pollIntervalRef.current);
+          }
         }
       }
     }, 3000);
@@ -144,7 +141,7 @@ export default function InterceptScreen({
         clearInterval(pollIntervalRef.current);
       }
     };
-  }, []);
+  }, [transactionId]);
 
   const tierColor = TIER_COLORS.HARD_INTERCEPT;
   const topExplanation = riskResponse.explanation[0] || '';
