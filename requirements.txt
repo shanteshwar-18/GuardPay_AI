@@ -1,30 +1,36 @@
-fastapi
-uvicorn[standard]
-pydantic
+fastapi>=0.141.1
+uvicorn[standard]>=0.52.4
+pydantic>=2.13.4
 pydantic-settings
 websockets
 pymongo
 motor
-supabase
-librosa
-torch
-torchaudio
-scikit-learn
-imbalanced-learn
-shap
-openai-whisper
-groq
-twilio
+supabase>=2.31.0
+# Audio / ML stack (pinned versions validated on Python 3.12.10)
+numpy>=2.5.2
+scipy>=1.18.0
+soundfile>=0.14.0
+scikit-learn>=1.9.0
+imbalanced-learn>=0.14.2
+shap>=0.52.0
+cloudpickle>=3.1.2        # required by shap
+slicer==0.0.8             # required by shap
+# AI models (torch CPU-only for Windows, librosa optional)
+torch>=2.13.0             # install via: pip install torch --index-url https://download.pytorch.org/whl/cpu
+openai-whisper>=20250625  # Whisper-tiny (72MB weights downloaded on first run)
+groq>=1.6.0
+# librosa                 # optional: better Mel-spectrograms; requires llvmlite/numba
+# Backend
+twilio>=9.11.0
 cryptography
 pillow
 pytesseract
-pytest
+# Dev / test
+pytest>=9.1.1
 pytest-asyncio
 httpx
-numpy
 pandas
 faker
 python-multipart
 python-dotenv
-soundfile
 pybloom-live
