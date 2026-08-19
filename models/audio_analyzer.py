@@ -20,17 +20,27 @@ from pathlib import Path
 from functools import lru_cache
 
 import numpy as np
-import torch
+
+# ── Optional torch import — graceful fallback if not installed ─────────────────
+try:
+    import torch
+    _TORCH_AVAILABLE = True
+except ImportError:
+    torch = None  # type: ignore
+    _TORCH_AVAILABLE = False
+    print("[audio_analyzer] WARNING: torch not installed — CNN disabled, analyze() returns 0.0")
 
 # ── Lazy import guard ──────────────────────────────────────────────────────────
 _MODEL_PATH = Path(__file__).parent / "voice_cnn.pt"
-_model: "VoiceCloneCNN | None" = None   # cached singleton
-_device: torch.device = torch.device("cpu")
+_model = None   # cached singleton
+_device = None
 
 
 def _get_model():
     """Load the CNN once; cache as module-level singleton."""
     global _model, _device
+    if not _TORCH_AVAILABLE:
+        return None
     if _model is not None:
         return _model
 
@@ -60,8 +70,11 @@ def _get_model():
 def _infer(pcm_bytes: bytes) -> float:
     """
     Blocking inference — extract Mel-spectrogram and run CNN.
-    Must NOT be called directly from an async context; use analyze() instead.
+    Returns 0.0 if torch not available (fail-safe).
     """
+    if not _TORCH_AVAILABLE:
+        return 0.0
+
     import sys
     sys.path.insert(0, str(Path(__file__).parent.parent))
     from models.audio_features import extract_melspectrogram
@@ -77,31 +90,24 @@ def _infer(pcm_bytes: bytes) -> float:
     return float(prob)
 
 
-# ── Public API ─────────────────────────────────────────────────────────────────
+# Public API
 
 async def analyze(pcm_bytes: bytes) -> dict:
     """
     Async-safe voice-clone analysis.
-
-    Wraps the blocking CNN inference with asyncio.to_thread so it doesn't
-    block the event loop when called inside asyncio.gather().
-
-    Args:
-        pcm_bytes: Raw 3-second PCM audio buffer (bytes).
-
-    Returns:
-        {'spoof_probability': float}  — value in [0.0, 1.0].
-        Higher means more likely to be AI-synthesised / cloned.
+    Returns 0.0 safely if torch is not installed.
     """
-    # Lazy-load model on first call (thread-safe enough for single-process use)
+    if not _TORCH_AVAILABLE:
+        return {"spoof_probability": 0.0}
     _get_model()
     prob = await asyncio.to_thread(_infer, pcm_bytes)
     return {"spoof_probability": prob}
 
 
-# Synchronous convenience wrapper for non-async callers (e.g. tests, scripts)
 def analyze_sync(pcm_bytes: bytes) -> dict:
     """Synchronous version of analyze() for scripts and unit tests."""
+    if not _TORCH_AVAILABLE:
+        return {"spoof_probability": 0.0}
     _get_model()
     return {"spoof_probability": _infer(pcm_bytes)}
 
