@@ -81,21 +81,17 @@ export const radius = {
  *
  * Returns base * 1.5 when Senior Citizen Mode is active, base otherwise.
  * Reads isSeniorMode from SeniorModeContext.
- *
- * NOTE: SeniorModeContext is created in Prompt 6. Until then, this hook
- * always returns the base value. The try/catch ensures no crash if the
- * context provider isn't mounted yet.
  */
 export function useScaledFontSize(base: number): number {
   try {
-    // Lazy import to avoid circular dependency before Prompt 6
     const { SeniorModeContext } = require('./context/SeniorModeContext');
     const context = useContext(SeniorModeContext);
     if (context?.isSeniorMode) {
       return base * 1.5;
     }
   } catch {
-    // SeniorModeContext not yet created — return base
+    // Context not available — return base
   }
   return base;
 }
+
