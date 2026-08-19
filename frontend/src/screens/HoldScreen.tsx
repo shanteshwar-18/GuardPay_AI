@@ -30,6 +30,8 @@ import {
 import RiskGauge from '../components/RiskGauge';
 import ExplanationList from '../components/ExplanationList';
 import NumericInput from '../components/NumericInput';
+import TTSControl from '../components/TTSControl';
+import { warn, stopSpeech, SupportedLanguage } from '../services/tts';
 
 // MOCK — remove once RiskEvalScreen wiring lands
 const MOCK_RISK_RESPONSE: RiskScoreResponse = {
@@ -58,16 +60,28 @@ interface HoldScreenProps {
   riskResponse?: RiskScoreResponse;
   onTimerExpired?: () => void;
   onVerified?: () => void;
+  /** Detected language for TTS — defaults to EN */
+  detectedLanguage?: SupportedLanguage;
 }
 
 export default function HoldScreen({
   riskResponse = MOCK_RISK_RESPONSE,
   onTimerExpired,
   onVerified,
+  detectedLanguage = 'EN',
 }: HoldScreenProps) {
   const [secondsLeft, setSecondsLeft] = useState(HOLD_DURATION_SECONDS);
   const [isVerified, setIsVerified] = useState(false);
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  // TTS: speak warning aloud on mount (Prompt 5)
+  const warningText = riskResponse.explanation.join('. ');
+  useEffect(() => {
+    warn(warningText, detectedLanguage);
+    return () => {
+      stopSpeech();
+    };
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Countdown timer — cleans up on unmount
   useEffect(() => {
@@ -116,6 +130,9 @@ export default function HoldScreen({
 
   return (
     <View style={styles.container}>
+      {/* TTS Mute/Replay Control (top-right) */}
+      <TTSControl text={warningText} lang={detectedLanguage} />
+
       <ScrollView
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}

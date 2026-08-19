@@ -4,12 +4,13 @@
  * Amber-themed screen with:
  * - Circular risk score gauge (0–100, amber fill)
  * - SHAP explanation bulleted list
- * - Multilingual warning banner (placeholder for TTS in Prompt 5)
+ * - Multilingual warning banner with TTS auto-play on mount
+ * - Mute/Replay speaker icon (top-right)
  * - Proceed Anyway (secondary, grey) + Cancel Transaction (primary, amber)
  *   Cancel is visually dominant.
  */
 
-import React from 'react';
+import React, { useEffect } from 'react';
 import {
   View,
   Text,
@@ -28,6 +29,8 @@ import {
 } from '../theme';
 import RiskGauge from '../components/RiskGauge';
 import ExplanationList from '../components/ExplanationList';
+import TTSControl from '../components/TTSControl';
+import { warn, stopSpeech, SupportedLanguage } from '../services/tts';
 
 // MOCK — remove once RiskEvalScreen wiring lands
 const MOCK_RISK_RESPONSE: RiskScoreResponse = {
@@ -52,17 +55,32 @@ interface WarningScreenProps {
   riskResponse?: RiskScoreResponse;
   onProceed?: () => void;
   onCancel?: () => void;
+  /** Detected language for TTS — defaults to EN */
+  detectedLanguage?: SupportedLanguage;
 }
 
 export default function WarningScreen({
   riskResponse = MOCK_RISK_RESPONSE,
   onProceed,
   onCancel,
+  detectedLanguage = 'EN',
 }: WarningScreenProps) {
   const tierColor = TIER_COLORS.WARNING;
 
+  // TTS: speak warning aloud on mount (Prompt 5)
+  const warningText = riskResponse.explanation.join('. ');
+  useEffect(() => {
+    warn(warningText, detectedLanguage);
+    return () => {
+      stopSpeech(); // Clean up on screen leave
+    };
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
   return (
     <View style={styles.container}>
+      {/* TTS Mute/Replay Control (top-right) */}
+      <TTSControl text={warningText} lang={detectedLanguage} />
+
       <ScrollView
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
