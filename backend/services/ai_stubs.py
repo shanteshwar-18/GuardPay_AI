@@ -29,6 +29,18 @@ _PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent
 if str(_PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(_PROJECT_ROOT))
 
+# ── Pre-import sklearn before torch to avoid circular import ───────────────────
+# When torch is loaded first, its C extensions can partially initialize numpy
+# before sklearn's import chain runs, causing:
+#   "cannot import name 'clone' from partially initialized module 'sklearn.base'"
+# Loading sklearn first avoids this race condition.
+try:
+    import sklearn.ensemble      # noqa: F401  — pre-warm sklearn
+    import sklearn.preprocessing # noqa: F401
+    import sklearn.metrics.pairwise  # noqa: F401
+except ImportError:
+    pass  # sklearn not installed — models will handle their own ImportError
+
 # ── Lazy-loaded model functions (heavy imports deferred to first call) ─────────
 _audio_analyze_fn = None
 _transcribe_fn    = None
