@@ -18,6 +18,7 @@ export const WHITE = '#FFFFFF';
 export const BLACK = '#000000';
 
 // Status / semantic colours
+export const PRIMARY_PURPLE = '#6C5CE7';
 export const SUCCESS = '#00E676';
 export const ERROR = '#FF1744';
 export const INFO = '#29B6F6';

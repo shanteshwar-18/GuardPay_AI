@@ -84,14 +84,22 @@ async def _evaluate_all_modules(req: RiskScoreRequest) -> dict[str, float]:
 
     async def get_text_factor() -> float:
         try:
-            transcript = await transcribe_audio(req.audio_base64)
-            return await detect_coercion(transcript)
+            transcript = req.transcript
+            if not transcript and req.audio_base64:
+                transcript = await transcribe_audio(req.audio_base64)
+            if transcript:
+                return await detect_coercion(transcript)
+            return 0.0
         except Exception as e:
             logger.warning(f"[coercion_engine] failed: {e}")
             return 0.0
 
     async def get_ocr_factor() -> float:
         try:
+            if req.ocr_text:
+                from backend.routers.ocr import _detect_scam_phrases
+                detected = _detect_scam_phrases(req.ocr_text)
+                return 1.0 if detected else (0.8 if req.is_screen_sharing else 0.0)
             if not req.ocr_screenshot_base64:
                 return 1.0 if req.is_screen_sharing else 0.0
             # Inline OCR using the scam phrase matcher from ocr router

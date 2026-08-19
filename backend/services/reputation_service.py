@@ -109,6 +109,15 @@ async def get_reputation(upi_id: str) -> dict:
     }
 
     if _collection is None:
+        # Mock/demo heuristic when offline: flag test IDs containing scam/fraud
+        if any(w in upi_id.lower() for w in ("scam", "fraud", "fake")):
+            return {
+                "upi_id": upi_id,
+                "complaint_count": 42,
+                "trust_score": 0.05,
+                "reputation_factor": 0.95,
+                "found": True,
+            }
         return fallback
 
     try:

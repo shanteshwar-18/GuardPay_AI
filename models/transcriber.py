@@ -62,25 +62,29 @@ def _bytes_to_wav_file(audio_buffer: bytes, sr: int = 16_000) -> str:
     if audio.ndim > 1:
         audio = audio.mean(axis=1)  # convert to mono
 
-    # Resample if necessary
+    # Resample if necessary using scipy (librosa optional)
     if file_sr != sr:
-        import librosa
-        audio = librosa.resample(audio.astype(np.float32), orig_sr=file_sr, target_sr=sr)
+        try:
+            import librosa
+            audio = librosa.resample(audio.astype(np.float32), orig_sr=file_sr, target_sr=sr)
+        except ImportError:
+            from scipy.signal import resample as scipy_resample
+            n_samples = int(len(audio) * sr / file_sr)
+            audio = scipy_resample(audio, n_samples).astype(np.float32)
 
-    tmp = tempfile.NamedTemporaryFile(suffix=".wav", delete=False)
-    sf.write(tmp.name, audio, sr)
-    tmp.close()
-    return tmp.name
+    # Return float32 numpy array at 16kHz — Whisper accepts this directly
+    # (avoids ffmpeg dependency on Windows)
+    return audio.astype(np.float32)
 
 
-def _detect_language(model, wav_path: str) -> str | None:
+def _detect_language(model, audio_np: np.ndarray) -> str | None:
     """
     Detect the dominant spoken language in the first 30 seconds.
+    Accepts a float32 numpy array at 16kHz (no ffmpeg required).
     Returns a Whisper language code string (e.g. 'hi', 'mr', 'en') or None.
     """
     import whisper
-    audio = whisper.load_audio(wav_path)
-    audio = whisper.pad_or_trim(audio)
+    audio = whisper.pad_or_trim(audio_np)
     mel   = whisper.log_mel_spectrogram(audio).to(model.device)
     _, probs = model.detect_language(mel)
     top_lang = max(probs, key=probs.get)
@@ -91,27 +95,28 @@ def _transcribe_blocking(audio_buffer: bytes) -> str:
     """
     Blocking Whisper transcription — NOT safe to call directly from async.
     Called via asyncio.to_thread in transcribe().
+
+    Uses numpy array directly (no ffmpeg needed on Windows).
     """
-    wav_path = _bytes_to_wav_file(audio_buffer)
+    # Decode bytes → float32 numpy array at 16kHz
+    audio_np = _bytes_to_wav_file(audio_buffer)
     try:
         model = _load_whisper()
 
-        # Detect language to pass as hint (prevents Hindi → English garbling)
-        lang = _detect_language(model, wav_path)
+        # Detect language using numpy array (no ffmpeg)
+        lang = _detect_language(model, audio_np)
 
+        # Whisper.transcribe() accepts numpy float32 arrays directly
         result = model.transcribe(
-            wav_path,
+            audio_np,
             language=lang,          # hint: do NOT force — let Whisper confirm
             task="transcribe",      # keep original language, don't translate
             fp16=False,             # CPU-safe
         )
         text = result.get("text", "")
         return text.strip().lower()  # normalise to lowercase per promptbook spec
-    finally:
-        try:
-            os.unlink(wav_path)
-        except OSError:
-            pass
+    except Exception:
+        raise  # re-raise so ai_stubs can log and return ""
 
 
 # ── Public API ─────────────────────────────────────────────────────────────────

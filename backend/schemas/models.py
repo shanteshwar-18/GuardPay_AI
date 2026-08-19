@@ -52,6 +52,8 @@ class RiskScoreRequest(BaseModel):
     # Optional enrichment fields (populated by mobile SDK)
     audio_base64: Optional[str] = Field(None, description="Base64-encoded 3-sec PCM chunk")
     ocr_screenshot_base64: Optional[str] = Field(None, description="Base64 screenshot for OCR")
+    ocr_text: Optional[str] = Field(None, description="Extracted OCR text or scam notices")
+    transcript: Optional[str] = Field(None, description="Live speech transcript")
     is_screen_sharing: bool = Field(False)
     session_id: Optional[str] = None
     device_behaviour: Optional[DeviceBehaviour] = None

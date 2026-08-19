@@ -1,0 +1,21 @@
+transcript,was_scam,split
+cbi officer speaking your account has been linked to money laundering pay immediately or face arrest,1,train
+enforcement directorate has issued a warrant we need you to transfer funds to a safe account now,1,train
+your aadhaar card has been misused in drug trafficking do not tell anyone keep this call secret,1,train
+trai is blocking your number unless you pay the penalty within one hour your sim will be deactivated,1,train
+narcotics control bureau this is your final warning pay or be arrested do not hang up,1,train
+aapka account band ho jayega abhi paisa transfer karo kisi ko mat batana,1,eval
+your pan card is blocked by income tax department pay rs 50000 to clear your name immediately,1,eval
+high court order has been issued against you for non-bailable offence stay on the line,1,train
+you are being monitored by cybercrime division transfer to government escrow account,1,eval
+this is rbi compliance team your transaction is frozen transfer to verify your identity,1,eval
+hi can you please transfer 500 rupees for the groceries i bought yesterday thanks,0,train
+i would like to send money to my mother for her birthday can you help me set it up,0,train
+please confirm the upi id before i send the rent payment for this month,0,eval
+splitting the restaurant bill with you sending my share now let me know if you get it,0,train
+the electricity bill is due today i am paying it via upi should be done in a minute,0,train
+could you please refund the amount for the cancelled order thank you,0,train
+just checking if you received the payment i sent earlier for the textbooks,0,eval
+i am adding a new merchant to my upi app it is asking for verification is this normal,0,train
+hi this is the water authority your bill has been generated please pay by end of month,0,train
+amazon delivery partner confirming your cash on delivery order please keep exact change ready,0,train

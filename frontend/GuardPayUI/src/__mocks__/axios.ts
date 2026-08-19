@@ -1,5 +1,5 @@
 /** Mock for axios — used by Jest UI tests so no real network calls happen */
-const mockAxios = {
+const mockAxios: any = {
   get: jest.fn(() => Promise.resolve({ data: {} })),
   post: jest.fn(() =>
     Promise.resolve({
