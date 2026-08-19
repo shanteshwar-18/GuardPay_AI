@@ -136,7 +136,10 @@ describe('WarningScreen', () => {
     await waitFor(() => {
       const badges = getAllByText(/\+\d+ pts/);
       // "+25 pts" should be first
-      expect(badges[0].props.children).toContain('25');
+      const childText = Array.isArray(badges[0].props.children)
+        ? badges[0].props.children.join('')
+        : String(badges[0].props.children);
+      expect(childText).toContain('25');
     });
   });
 
