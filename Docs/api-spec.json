@@ -1,0 +1,852 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "GuardPay AI",
+    "description": "Real-Time UPI Fraud Intervention Engine \u2014 multi-modal risk scoring, Twilio IVR, AES-256-GCM evidence bundles.",
+    "version": "1.0.0"
+  },
+  "paths": {
+    "/health": {
+      "get": {
+        "tags": [
+          "Health"
+        ],
+        "summary": "Health check",
+        "description": "Returns service liveness. Frontend and smoke tests hit this first.\nIncludes status of downstream services for diagnostics.",
+        "operationId": "health_check_health_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HealthResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/risk-score": {
+      "post": {
+        "tags": [
+          "Risk Score"
+        ],
+        "summary": "Evaluate transaction risk score",
+        "description": "Multi-modal fraud risk evaluation via asyncio.gather(). 6 independent modules run concurrently \u2192 weighted risk fusion \u2192 SHAP top-3. Target latency: < 3 seconds.",
+        "operationId": "evaluate_risk_api_v1_risk_score_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RiskScoreRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RiskScoreResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/session/{txn_id}/status": {
+      "get": {
+        "tags": [
+          "Session"
+        ],
+        "summary": "Poll transaction session status",
+        "description": "Frontend polls this to check IVR outcome and final transaction fate.\nPROMPT 9 will enrich this with DTMF response from Twilio callback.",
+        "operationId": "get_session_status_api_v1_session__txn_id__status_get",
+        "parameters": [
+          {
+            "name": "txn_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Txn Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SessionStatusResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/session/{txn_id}/score-stream": {
+      "get": {
+        "tags": [
+          "Session"
+        ],
+        "summary": "SSE score stream (Phase 7 \u2014 Jatin's pipeline wires this)",
+        "description": "Server-Sent Events endpoint for real-time risk score updates.\nTODO Phase 7: Jatin's pipeline_orchestrator.py pushes updates here\nvia asyncio.Queue \u2192 SSE stream.",
+        "operationId": "score_stream_api_v1_session__txn_id__score_stream_get",
+        "parameters": [
+          {
+            "name": "txn_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Txn Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/twilio/callback": {
+      "post": {
+        "tags": [
+          "Twilio IVR"
+        ],
+        "summary": "Twilio DTMF webhook \u2014 PROMPT 9",
+        "description": "Receives DTMF keypress from trusted contact via Twilio callback.\n\nDigit '1' \u2192 AUTHORISED \u2192 release transaction\nDigit '2' \u2192 FROZEN \u2192 freeze + send bank fraud alert\nNo digit   \u2192 NO_RESPONSE \u2192 remains blocked",
+        "operationId": "twilio_dtmf_callback_api_v1_twilio_callback_post",
+        "parameters": [
+          {
+            "name": "txn_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "description": "Transaction ID passed via query param",
+              "default": "unknown",
+              "title": "Txn Id"
+            },
+            "description": "Transaction ID passed via query param"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/ocr": {
+      "post": {
+        "tags": [
+          "OCR"
+        ],
+        "summary": "OCR screen analysis",
+        "description": "Decodes screenshot, runs OCR (pytesseract fallback), fuzzy-matches scam phrases.\nPhase 7.2: Google ML Kit Vision replaces pytesseract in production.",
+        "operationId": "analyze_screenshot_api_v1_ocr_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/OCRRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OCRResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/feedback": {
+      "post": {
+        "tags": [
+          "Feedback"
+        ],
+        "summary": "Report scam outcome",
+        "description": "User marks whether a flagged transaction was actually a scam.\nStored in Supabase feedback table (in-memory fallback if unavailable).\nBatch recalibration: python scripts/recalibrate_thresholds.py (Jatin owns this)",
+        "operationId": "capture_feedback_api_v1_feedback_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/FeedbackRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FeedbackResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/stats": {
+      "get": {
+        "tags": [
+          "Feedback"
+        ],
+        "summary": "False-positive rate stats",
+        "description": "Returns precision/recall stats from feedback data.\nUses Supabase aggregation if available, else computes from in-memory store.",
+        "operationId": "get_stats_api_v1_stats_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatsResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "DeviceBehaviour": {
+        "properties": {
+          "screen_share_duration_seconds": {
+            "type": "integer",
+            "title": "Screen Share Duration Seconds",
+            "default": 0
+          },
+          "app_switch_locked": {
+            "type": "boolean",
+            "title": "App Switch Locked",
+            "default": false
+          },
+          "unusual_typing_cadence": {
+            "type": "boolean",
+            "title": "Unusual Typing Cadence",
+            "default": false
+          },
+          "time_since_last_app_open_seconds": {
+            "type": "integer",
+            "title": "Time Since Last App Open Seconds",
+            "default": 0
+          }
+        },
+        "type": "object",
+        "title": "DeviceBehaviour",
+        "description": "Device-level signals correlating with psychological duress."
+      },
+      "FeedbackRequest": {
+        "properties": {
+          "transaction_id": {
+            "type": "string",
+            "title": "Transaction Id"
+          },
+          "was_scam": {
+            "type": "boolean",
+            "title": "Was Scam"
+          },
+          "reported_by": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reported By"
+          }
+        },
+        "type": "object",
+        "required": [
+          "transaction_id",
+          "was_scam"
+        ],
+        "title": "FeedbackRequest",
+        "description": "User reports whether an intercepted transaction was actually a scam."
+      },
+      "FeedbackResponse": {
+        "properties": {
+          "transaction_id": {
+            "type": "string",
+            "title": "Transaction Id"
+          },
+          "recorded": {
+            "type": "boolean",
+            "title": "Recorded"
+          },
+          "message": {
+            "type": "string",
+            "title": "Message"
+          }
+        },
+        "type": "object",
+        "required": [
+          "transaction_id",
+          "recorded",
+          "message"
+        ],
+        "title": "FeedbackResponse"
+      },
+      "HTTPValidationError": {
+        "properties": {
+          "detail": {
+            "items": {
+              "$ref": "#/components/schemas/ValidationError"
+            },
+            "type": "array",
+            "title": "Detail"
+          }
+        },
+        "type": "object",
+        "title": "HTTPValidationError"
+      },
+      "HealthResponse": {
+        "properties": {
+          "status": {
+            "type": "string",
+            "title": "Status",
+            "default": "ok"
+          },
+          "version": {
+            "type": "string",
+            "title": "Version",
+            "default": "1.0.0"
+          },
+          "services": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "type": "object",
+            "title": "Services",
+            "default": {}
+          }
+        },
+        "type": "object",
+        "title": "HealthResponse"
+      },
+      "IVROutcome": {
+        "type": "string",
+        "enum": [
+          "AUTHORISED",
+          "FROZEN",
+          "NO_RESPONSE"
+        ],
+        "title": "IVROutcome"
+      },
+      "OCRRequest": {
+        "properties": {
+          "transaction_id": {
+            "type": "string",
+            "title": "Transaction Id"
+          },
+          "screenshot_base64": {
+            "type": "string",
+            "title": "Screenshot Base64"
+          }
+        },
+        "type": "object",
+        "required": [
+          "transaction_id",
+          "screenshot_base64"
+        ],
+        "title": "OCRRequest",
+        "description": "Mobile sends a screenshot when screen-share is detected."
+      },
+      "OCRResponse": {
+        "properties": {
+          "transaction_id": {
+            "type": "string",
+            "title": "Transaction Id"
+          },
+          "ocr_text": {
+            "type": "string",
+            "title": "Ocr Text"
+          },
+          "scam_phrases_detected": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Scam Phrases Detected"
+          },
+          "ocr_factor": {
+            "type": "number",
+            "maximum": 1.0,
+            "minimum": 0.0,
+            "title": "Ocr Factor"
+          }
+        },
+        "type": "object",
+        "required": [
+          "transaction_id",
+          "ocr_text",
+          "scam_phrases_detected",
+          "ocr_factor"
+        ],
+        "title": "OCRResponse"
+      },
+      "RiskFactor": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "contribution_points": {
+            "type": "number",
+            "title": "Contribution Points"
+          },
+          "weight": {
+            "type": "number",
+            "title": "Weight"
+          },
+          "raw_score": {
+            "type": "number",
+            "title": "Raw Score"
+          },
+          "description": {
+            "type": "string",
+            "title": "Description"
+          }
+        },
+        "type": "object",
+        "required": [
+          "name",
+          "contribution_points",
+          "weight",
+          "raw_score",
+          "description"
+        ],
+        "title": "RiskFactor",
+        "description": "Single contributing factor in the risk explanation."
+      },
+      "RiskScoreRequest": {
+        "properties": {
+          "transaction_id": {
+            "type": "string",
+            "title": "Transaction Id"
+          },
+          "sender_upi_id": {
+            "type": "string",
+            "title": "Sender Upi Id",
+            "example": "user@ybl"
+          },
+          "receiver_upi_id": {
+            "type": "string",
+            "title": "Receiver Upi Id",
+            "example": "merchant@paytm"
+          },
+          "amount": {
+            "type": "number",
+            "exclusiveMinimum": 0.0,
+            "title": "Amount",
+            "example": 15000.0
+          },
+          "audio_base64": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Audio Base64",
+            "description": "Base64-encoded 3-sec PCM chunk"
+          },
+          "ocr_screenshot_base64": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ocr Screenshot Base64",
+            "description": "Base64 screenshot for OCR"
+          },
+          "ocr_text": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ocr Text",
+            "description": "Extracted OCR text or scam notices"
+          },
+          "transcript": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Transcript",
+            "description": "Live speech transcript"
+          },
+          "is_screen_sharing": {
+            "type": "boolean",
+            "title": "Is Screen Sharing",
+            "default": false
+          },
+          "session_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Session Id"
+          },
+          "device_behaviour": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/DeviceBehaviour"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "trusted_contact_number": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Trusted Contact Number",
+            "description": "E.164 format, e.g. +919876543210"
+          }
+        },
+        "type": "object",
+        "required": [
+          "sender_upi_id",
+          "receiver_upi_id",
+          "amount"
+        ],
+        "title": "RiskScoreRequest",
+        "description": "Payload sent by the mobile app when a UPI payment is initiated.\nAll fields are required; the backend will not assume defaults."
+      },
+      "RiskScoreResponse": {
+        "properties": {
+          "transaction_id": {
+            "type": "string",
+            "title": "Transaction Id"
+          },
+          "risk_score": {
+            "type": "number",
+            "maximum": 100.0,
+            "minimum": 0.0,
+            "title": "Risk Score"
+          },
+          "tier": {
+            "$ref": "#/components/schemas/RiskTier"
+          },
+          "explanation": {
+            "items": {
+              "$ref": "#/components/schemas/RiskFactor"
+            },
+            "type": "array",
+            "title": "Explanation",
+            "default": []
+          },
+          "recommended_action": {
+            "type": "string",
+            "title": "Recommended Action"
+          },
+          "evidence_bundle_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Evidence Bundle Id"
+          },
+          "ivr_call_initiated": {
+            "type": "boolean",
+            "title": "Ivr Call Initiated",
+            "default": false
+          },
+          "processing_time_ms": {
+            "type": "number",
+            "title": "Processing Time Ms",
+            "default": 0.0
+          }
+        },
+        "type": "object",
+        "required": [
+          "transaction_id",
+          "risk_score",
+          "tier",
+          "recommended_action"
+        ],
+        "title": "RiskScoreResponse",
+        "description": "Returned by POST /api/v1/risk-score.\nFrontend routes to the correct screen based on `tier`."
+      },
+      "RiskTier": {
+        "type": "string",
+        "enum": [
+          "SAFE",
+          "WARNING",
+          "ELEVATED",
+          "HARD_INTERCEPT"
+        ],
+        "title": "RiskTier",
+        "description": "Maps to the four GuardPay risk tiers defined in the Solution Document."
+      },
+      "SessionStatusResponse": {
+        "properties": {
+          "transaction_id": {
+            "type": "string",
+            "title": "Transaction Id"
+          },
+          "status": {
+            "$ref": "#/components/schemas/TransactionStatus"
+          },
+          "ivr_outcome": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/IVROutcome"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "risk_score": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Risk Score"
+          },
+          "updated_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Updated At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "transaction_id",
+          "status"
+        ],
+        "title": "SessionStatusResponse",
+        "description": "Returned by GET /api/v1/session/{txn_id}/status."
+      },
+      "StatsResponse": {
+        "properties": {
+          "total_feedback": {
+            "type": "integer",
+            "title": "Total Feedback"
+          },
+          "scam_reports": {
+            "type": "integer",
+            "title": "Scam Reports"
+          },
+          "false_positives": {
+            "type": "integer",
+            "title": "False Positives"
+          },
+          "false_positive_rate": {
+            "type": "number",
+            "title": "False Positive Rate"
+          },
+          "precision": {
+            "type": "number",
+            "title": "Precision"
+          },
+          "recall": {
+            "type": "number",
+            "title": "Recall"
+          }
+        },
+        "type": "object",
+        "required": [
+          "total_feedback",
+          "scam_reports",
+          "false_positives",
+          "false_positive_rate",
+          "precision",
+          "recall"
+        ],
+        "title": "StatsResponse"
+      },
+      "TransactionStatus": {
+        "type": "string",
+        "enum": [
+          "PENDING",
+          "RELEASED",
+          "FROZEN",
+          "BLOCKED"
+        ],
+        "title": "TransactionStatus"
+      },
+      "ValidationError": {
+        "properties": {
+          "loc": {
+            "items": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "integer"
+                }
+              ]
+            },
+            "type": "array",
+            "title": "Location"
+          },
+          "msg": {
+            "type": "string",
+            "title": "Message"
+          },
+          "type": {
+            "type": "string",
+            "title": "Error Type"
+          },
+          "input": {
+            "title": "Input"
+          },
+          "ctx": {
+            "type": "object",
+            "title": "Context"
+          }
+        },
+        "type": "object",
+        "required": [
+          "loc",
+          "msg",
+          "type"
+        ],
+        "title": "ValidationError"
+      }
+    }
+  }
+}
