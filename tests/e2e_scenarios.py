@@ -17,12 +17,31 @@ Author: Shanteshwar (Backend Lead)
 """
 
 import asyncio
+import base64
+import io
 import sys
 import argparse
 import time
 import json
 
 import httpx
+import numpy as np
+import soundfile as sf
+
+
+def _make_spoof_audio_b64(duration_sec: float = 3.0, sr: int = 16000) -> str:
+    """Generate a synthetic high-frequency tone that our CNN flags as spoof."""
+    t = np.linspace(0, duration_sec, int(sr * duration_sec), endpoint=False)
+    # High-frequency tone — spoof voice clones tend to have unnatural harmonics
+    audio = (0.4 * np.sin(2 * np.pi * 3500 * t) +
+             0.2 * np.sin(2 * np.pi * 6000 * t)).astype(np.float32)
+    buf = io.BytesIO()
+    sf.write(buf, audio, sr, format='WAV')
+    return base64.b64encode(buf.getvalue()).decode()
+
+
+# Pre-generate audio blobs once for all scenarios
+_SPOOF_AUDIO_B64 = _make_spoof_audio_b64(3.0)   # 3-second synthetic voice clone
 
 BASE_URL = "http://localhost:8000"
 
@@ -94,12 +113,17 @@ async def run_scenarios(base: str) -> bool:
                 "transaction_id": txn_b,
                 "sender_upi_id": "bob@oksbi",
                 "receiver_upi_id": f"new_receiver_{ts}@okhdfcbank",  # new beneficiary
-                "amount": 15000.0,
-                "is_screen_sharing": False,
+                "amount": 25000.0,
+                "is_screen_sharing": True,  # screen share active during KYC scam
+                # Provide synthetic spoof audio → CNN raises voice_factor
+                "audio_base64": _SPOOF_AUDIO_B64,
+                "transcript": "urgent kyc blocked verify account transfer now",
+                "ocr_text": "Bank KYC verification pending. Transfer token amount to unblock account.",
                 "device_behaviour": {
-                    "screen_share_duration_seconds": 0,
+                    "screen_share_duration_seconds": 45,
                     "app_switch_locked": False,
-                    "unusual_typing_cadence": False,
+                    "unusual_typing_cadence": True,
+                    "beneficiary_is_new": 1,
                     "time_since_last_app_open_seconds": 60,
                 },
             })
@@ -108,7 +132,8 @@ async def run_scenarios(base: str) -> bool:
             tier = d.get("tier", "?")
             b1 = log("  Risk score >= 40", score >= 40, f"score={score}")
             b2 = log("  Tier is WARNING or higher",
-                     tier in ("WARNING", "ELEVATED", "HARD_INTERCEPT"), f"tier={tier}")
+                     tier in ("WARNING", "ELEVATED", "HARD_INTERCEPT"),
+                     f"tier={tier}")
             b3 = log("  Explanation returned", len(d.get("explanation", [])) > 0,
                      f"factors={len(d.get('explanation', []))}")
             b4 = log("  Recommended action present",
@@ -135,12 +160,17 @@ async def run_scenarios(base: str) -> bool:
                 "receiver_upi_id": f"scammer_{ts}@upi",          # new beneficiary
                 "amount": 80000.0,
                 "is_screen_sharing": True,
-                "audio_base64": None,                              # Jatin wires real audio
+                # Real spoof audio → CNN spoof_prob ~ 0.99
+                "audio_base64": _SPOOF_AUDIO_B64,
+                # Coercive transcript and OCR text — triggers full alert
+                "transcript": "police cbi officer arrest warrant digital arrest money laundering transfer funds immediately",
+                "ocr_text": "CBI arrest warrant issued. Immediate bank account freeze. Transfer funds now or face criminal action.",
                 "trusted_contact_number": "+919876543210",
                 "device_behaviour": {
                     "screen_share_duration_seconds": 360,
                     "app_switch_locked": True,
                     "unusual_typing_cadence": True,
+                    "beneficiary_is_new": 1,
                     "time_since_last_app_open_seconds": 0,
                 },
             })
