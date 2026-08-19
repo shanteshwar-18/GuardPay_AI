@@ -20,7 +20,7 @@ from backend.core.config import settings
 from backend.services.risk_fusion import compute_risk
 from backend.services.reputation_service import get_reputation
 from backend.services.beneficiary_cache import is_new_beneficiary
-from backend.services.ai_stubs import (
+from backend.services.ai_services import (
     analyze_audio,
     transcribe_audio,
     detect_coercion,
