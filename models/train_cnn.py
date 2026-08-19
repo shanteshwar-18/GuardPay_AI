@@ -300,4 +300,21 @@ def train():
 
 
 if __name__ == "__main__":
-    train()
+    import argparse
+    parser = argparse.ArgumentParser(description="VoiceCloneCNN trainer")
+    parser.add_argument(
+        "--quick", action="store_true",
+        help="Skip training — save randomly-initialised weights for CI/testing"
+    )
+    args = parser.parse_args()
+
+    if args.quick:
+        print("[train_cnn] --quick mode: saving random-weight model (no training)")
+        model = VoiceCloneCNN()
+        MODEL_OUT.parent.mkdir(parents=True, exist_ok=True)
+        torch.save(model.state_dict(), MODEL_OUT)
+        print(f"[train_cnn] Saved quick-init model → {MODEL_OUT}")
+        print("[train_cnn] NOTE: use for pipeline testing only — train properly for production")
+    else:
+        train()
+
