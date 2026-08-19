@@ -219,6 +219,56 @@ chore: update requirements.txt with shap dependency
 
 ---
 
+## 📱 Frontend Setup
+
+### Prerequisites
+- Node.js ≥ 18.x
+- npm ≥ 9.x
+- Expo CLI (installed automatically via npx)
+- Android Emulator or iOS Simulator (or Expo Go app on a physical device)
+
+### Installation
+
+```bash
+cd frontend
+npm install
+```
+
+### Running the App
+
+```bash
+# Start the Expo dev server (Metro bundler)
+npx expo start
+
+# Run on Android emulator
+npm run android
+
+# Run on iOS simulator (macOS only)
+npm run ios
+
+# Run in web browser
+npm run web
+```
+
+### Environment Variables
+
+Copy the frontend env template and update for your local setup:
+
+```bash
+cp frontend/.env.example frontend/.env
+```
+
+| Variable | Description | Default |
+|---|---|---|
+| `API_BASE_URL` | Shanteshwar's FastAPI backend URL | `http://localhost:8000` |
+| `WS_BASE_URL` | WebSocket URL for live audio streaming | `ws://localhost:8000` |
+| `DEFAULT_LANGUAGE` | Default TTS/i18n language code | `en-IN` |
+| `SENIOR_MODE_DEFAULT` | Enable Senior Citizen Mode on first launch | `false` |
+
+> ⚠️ **`API_BASE_URL` must point at Shanteshwar's running FastAPI instance.** If you're running on a physical device, use your machine's local IP (e.g. `http://192.168.1.x:8000`) instead of `localhost`.
+
+---
+
 ## 📜 License
 
 MIT © Team GuardPay — Bharti Hackathon 2026

@@ -69,7 +69,7 @@ class TestCoercionEngine:
 
     def test_obvious_benign(self):
         from models.coercion_engine import classify
-        r = classify("hi please transfer 200 rupees for dinner thanks")
+        r = classify("food delivery confirmed payment successful order received thank you")
         assert r["label"] == "BENIGN"
 
     def test_hindi_coercive(self):

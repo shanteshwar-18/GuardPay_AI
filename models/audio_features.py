@@ -5,13 +5,28 @@ GuardPay AI · AI/ML Module (Jatin)
 Provides MFCC and Mel-spectrogram extraction used by both training and inference.
 Handles both real ASVspoof .flac files and synthetic .npy fallback transparently.
 
+Librosa is used when available; falls back to scipy STFT when librosa/numba
+are not yet installed (e.g. llvmlite still downloading).
+
 Commit: feat(audio): implement MFCC + Mel-spectrogram extractor with librosa
 """
 
 import io
+import logging
 import numpy as np
-import librosa
 from PIL import Image
+
+logger = logging.getLogger(__name__)
+
+try:
+    import librosa
+    _LIBROSA_OK = True
+except ImportError:
+    _LIBROSA_OK = False
+    logger.warning(
+        "[audio_features] librosa not installed — using scipy STFT fallback. "
+        "Install librosa for full Mel-spectrogram accuracy."
+    )
 
 
 # ── Constants ──────────────────────────────────────────────────────────────────
@@ -39,12 +54,27 @@ def _load_audio(source, sr: int = SAMPLE_RATE):
         import soundfile as sf
         buf = io.BytesIO(source)
         audio, file_sr = sf.read(buf)
+        if audio.ndim > 1:
+            audio = audio.mean(axis=1)  # stereo -> mono
         if file_sr != sr:
-            audio = librosa.resample(audio, orig_sr=file_sr, target_sr=sr)
+            if _LIBROSA_OK:
+                audio = librosa.resample(audio, orig_sr=file_sr, target_sr=sr)
+            else:
+                # Simple scipy resample fallback
+                from scipy.signal import resample
+                n_samples = int(len(audio) * sr / file_sr)
+                audio = resample(audio, n_samples)
         return audio.astype(np.float32), sr
-    # File path — use librosa.load with explicit sr to avoid version mismatch
-    audio, _ = librosa.load(source, sr=sr, mono=True)
-    return audio, sr
+    if _LIBROSA_OK:
+        # File path — use librosa.load with explicit sr to avoid version mismatch
+        audio, _ = librosa.load(source, sr=sr, mono=True)
+        return audio, sr
+    # Fallback: soundfile
+    import soundfile as sf
+    audio, file_sr = sf.read(str(source))
+    if audio.ndim > 1:
+        audio = audio.mean(axis=1)
+    return audio.astype(np.float32), sr
 
 
 def _resize_to_target(arr: np.ndarray) -> np.ndarray:
@@ -77,10 +107,18 @@ def extract_melspectrogram(
 
     audio, sr = _load_audio(audio_path_or_bytes, sr)
 
-    mel_spec = librosa.feature.melspectrogram(
-        y=audio, sr=sr, n_mels=N_MELS, fmax=8_000
-    )
-    mel_db = librosa.power_to_db(mel_spec, ref=np.max)
+    if _LIBROSA_OK:
+        mel_spec = librosa.feature.melspectrogram(
+            y=audio, sr=sr, n_mels=N_MELS, fmax=8_000
+        )
+        mel_db = librosa.power_to_db(mel_spec, ref=np.max)
+    else:
+        # scipy STFT fallback — computes log-power spectrogram, resized to 128 bins
+        from scipy.signal import stft
+        _, _, Zxx = stft(audio, fs=sr, nperseg=512, noverlap=384)
+        power = np.abs(Zxx) ** 2 + 1e-10
+        mel_db = 10 * np.log10(power[:N_MELS, :] if power.shape[0] >= N_MELS
+                               else np.pad(power, ((0, N_MELS - power.shape[0]), (0, 0))))
 
     # Resize to exactly 128×128
     resized = _resize_to_target(mel_db)
@@ -115,8 +153,18 @@ def extract_mfcc(
 
     audio, sr = _load_audio(audio_path_or_bytes, sr)
 
-    mfccs = librosa.feature.mfcc(y=audio, sr=sr, n_mfcc=n_mfcc)   # (n_mfcc, T)
-    resized = _resize_to_target(mfccs)
+    if _LIBROSA_OK:
+        mfccs = librosa.feature.mfcc(y=audio, sr=sr, n_mfcc=n_mfcc)   # (n_mfcc, T)
+    else:
+        # scipy DCT-based MFCC fallback
+        from scipy.fft import dct
+        from scipy.signal import stft
+        _, _, Zxx = stft(audio, fs=sr, nperseg=512, noverlap=384)
+        power = np.abs(Zxx) ** 2 + 1e-10
+        log_power = np.log(power[:40, :] if power.shape[0] >= 40
+                          else np.pad(power, ((0, 40 - power.shape[0]), (0, 0))))
+        mfccs = dct(log_power, axis=0, norm='ortho')[:n_mfcc, :]
+    resized = _resize_to_target(mfccs.astype(np.float32))
 
     # Normalise
     arr_min, arr_max = resized.min(), resized.max()
