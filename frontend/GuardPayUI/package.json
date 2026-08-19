@@ -47,19 +47,6 @@
     "react-test-renderer": "18.3.1",
     "typescript": "5.0.4"
   },
-  "jest": {
-    "preset": "react-native",
-    "setupFilesAfterEnv": [
-      "@testing-library/react-native/extend-expect"
-    ],
-    "moduleNameMapper": {
-      "^axios$": "<rootDir>/src/__mocks__/axios.ts",
-      "audioStream$": "<rootDir>/src/__mocks__/audioStream.ts"
-    },
-    "transformIgnorePatterns": [
-      "node_modules/(?!(react-native|@react-native|@react-navigation|react-native-screens|react-native-safe-area-context|react-native-tts|react-native-audio-record|react-native-permissions|react-native-localize|@react-native-async-storage)/)"
-    ]
-  },
   "engines": {
     "node": ">=18"
   }
