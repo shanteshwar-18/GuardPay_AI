@@ -281,8 +281,9 @@ def classify(text: str) -> dict:
             "groq_reason":     groq_result.get("reason", ""),
         }
 
-    # ── Groq failed → fall back to TF-IDF threshold ───────────────────────
-    label = "COERCIVE" if tfidf_score >= TFIDF_THRESHOLD_UNCERTAIN else "BENIGN"
+    # ── Groq unavailable → uncertain zone defaults to BENIGN (safer, avoids FP)
+    # Only classify as COERCIVE without Groq if score >= TFIDF_THRESHOLD_COERCIVE
+    label = "COERCIVE" if tfidf_score >= TFIDF_THRESHOLD_COERCIVE else "BENIGN"
     return {
         "label":           label,
         "score":           tfidf_score,

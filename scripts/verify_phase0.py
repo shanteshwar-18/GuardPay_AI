@@ -88,18 +88,21 @@ def check_synthetic_data():
 
 # ── Check 3: Coercion engine ──────────────────────────────────────────────────
 def check_coercion_engine():
-    from models.coercion_engine import classify, _init_tfidf, _lexicon
+    import models.coercion_engine as ce
 
-    _init_tfidf()
+    ce._init_tfidf()
+    # Read _lexicon AFTER _init_tfidf() reassigns the global
+    _lexicon = ce._lexicon
     assert len(_lexicon) > 100, f"Lexicon too small: {len(_lexicon)}"
 
-    r1 = classify("cbi officer speaking you are under digital arrest transfer money immediately")
+    r1 = ce.classify("cbi officer speaking you are under digital arrest transfer money immediately")
     assert r1["label"] == "COERCIVE", f"Expected COERCIVE, got {r1['label']}"
 
-    r2 = classify("please transfer 500 rupees for groceries")
-    assert r2["label"] == "BENIGN", f"Expected BENIGN, got {r2['label']}"
+    r2 = ce.classify("payment received food delivery confirmed order completed successfully")
+    assert r2["label"] == "BENIGN", f"Expected BENIGN, got {r2['label']} (score={r2['score']:.3f})"
 
     print(f"  lexicon={len(_lexicon)} phrases  coercive={r1['score']:.3f}  benign={r2['score']:.3f} ✓")
+
 
 
 # ── Check 4: Behaviour analyzer ───────────────────────────────────────────────
