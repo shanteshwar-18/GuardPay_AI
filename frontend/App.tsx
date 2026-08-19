@@ -12,6 +12,7 @@ import React from 'react';
 import { View, StyleSheet, ActivityIndicator } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { NavigationContainer } from '@react-navigation/native';
+import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 import { SeniorModeProvider, useSeniorMode } from './src/context/SeniorModeContext';
 import SeniorModeBanner from './src/components/SeniorModeBanner';
 import EmergencyContactButton from './src/components/EmergencyContactButton';
@@ -30,7 +31,7 @@ function AppContent() {
   }
 
   return (
-    <View style={styles.wrapper}>
+    <SafeAreaView style={styles.wrapper} edges={['top', 'left', 'right']}>
       {/* Senior Mode Banner — root level */}
       <SeniorModeBanner />
 
@@ -43,15 +44,17 @@ function AppContent() {
       <EmergencyContactButton />
 
       <StatusBar style="light" />
-    </View>
+    </SafeAreaView>
   );
 }
 
 export default function App() {
   return (
-    <SeniorModeProvider>
-      <AppContent />
-    </SeniorModeProvider>
+    <SafeAreaProvider>
+      <SeniorModeProvider>
+        <AppContent />
+      </SeniorModeProvider>
+    </SafeAreaProvider>
   );
 }
 
