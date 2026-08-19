@@ -28,7 +28,14 @@ export default function RiskGauge({
   const fillPercent = Math.min(Math.max(score, 0), 100);
 
   return (
-    <View style={[styles.container, { width: size, height: size }]}>
+    <View
+      style={[styles.container, { width: size, height: size }]}
+      accessible={true}
+      accessibilityRole="progressbar"
+      accessibilityValue={{ min: 0, max: 100, now: score }}
+      accessibilityLabel={`Risk score: ${score} out of 100, risk category: ${tier}`}
+      accessibilityHint="Visual fraud risk assessment from multi-modal analysis"
+    >
       {/* Background ring */}
       <View
         style={[

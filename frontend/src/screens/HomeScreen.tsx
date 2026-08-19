@@ -63,6 +63,9 @@ export default function HomeScreen({ navigation }: HomeScreenProps) {
             keyboardType="email-address"
             autoCapitalize="none"
             autoCorrect={false}
+            accessible={true}
+            accessibilityLabel="Beneficiary UPI ID"
+            accessibilityHint="Enter the recipient UPI ID, for example name@okhdfcbank"
           />
 
           <Text style={styles.label}>Amount (₹)</Text>
@@ -73,6 +76,9 @@ export default function HomeScreen({ navigation }: HomeScreenProps) {
             placeholder="0.00"
             placeholderTextColor={colors.textMuted}
             keyboardType="numeric"
+            accessible={true}
+            accessibilityLabel="Amount in Rupees"
+            accessibilityHint="Enter the transaction amount in Indian Rupees"
           />
         </View>
 
@@ -82,6 +88,10 @@ export default function HomeScreen({ navigation }: HomeScreenProps) {
           onPress={handlePay}
           disabled={!isValid}
           activeOpacity={0.8}
+          accessible={true}
+          accessibilityRole="button"
+          accessibilityLabel={isValid ? `Pay ${amount} rupees` : 'Pay button disabled. Enter valid UPI ID and amount.'}
+          accessibilityHint="Evaluates fraud risk across voice, text, and device signals before proceeding"
         >
           <Text style={styles.payButtonText}>
             {isValid ? `Pay ₹${amount}` : 'Enter Details'}
@@ -92,6 +102,9 @@ export default function HomeScreen({ navigation }: HomeScreenProps) {
         <TouchableOpacity
           style={styles.settingsLink}
           onPress={() => navigation.navigate('Settings')}
+          accessible={true}
+          accessibilityRole="button"
+          accessibilityLabel="Open Settings and Accessibility Options"
         >
           <Text style={styles.settingsText}>⚙️ Settings</Text>
         </TouchableOpacity>

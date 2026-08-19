@@ -129,7 +129,13 @@ export default function HoldScreen({
         </View>
 
         {/* Countdown Timer */}
-        <View style={[styles.timerCard, { borderColor: tierColor + '60' }]}>
+        <View
+          style={[styles.timerCard, { borderColor: tierColor + '60' }]}
+          accessible={true}
+          accessibilityLiveRegion="assertive"
+          accessibilityRole="timer"
+          accessibilityLabel={`Cooling-off countdown: ${secondsLeft} seconds remaining`}
+        >
           <Text style={styles.timerLabel}>COOLING-OFF PERIOD</Text>
           <Text style={[styles.timerValue, { color: tierColor }]}>
             {String(Math.floor(secondsLeft / 60)).padStart(2, '0')}:

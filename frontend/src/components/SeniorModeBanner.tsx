@@ -16,7 +16,12 @@ export default function SeniorModeBanner() {
   if (!isSeniorMode) return null;
 
   return (
-    <View style={styles.banner}>
+    <View
+      style={styles.banner}
+      accessible={true}
+      accessibilityRole="alert"
+      accessibilityLabel="Senior Citizen Mode is active. Enlarged fonts and voice assistance enabled."
+    >
       <Text style={styles.icon}>👴</Text>
       <Text style={styles.text}>Senior Citizen Mode Active</Text>
     </View>

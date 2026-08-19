@@ -50,7 +50,13 @@ export default function SettingsScreen({ navigation }: SettingsScreenProps) {
       <ScrollView contentContainerStyle={styles.scrollContent}>
         {/* Header */}
         <View style={styles.header}>
-          <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
+          <TouchableOpacity
+            onPress={() => navigation.goBack()}
+            style={styles.backButton}
+            accessible={true}
+            accessibilityRole="button"
+            accessibilityLabel="Go back to home"
+          >
             <Text style={styles.backText}>← Back</Text>
           </TouchableOpacity>
           <Text style={styles.title}>Settings</Text>
@@ -78,6 +84,11 @@ export default function SettingsScreen({ navigation }: SettingsScreenProps) {
                 true: colors.seniorBanner,
               }}
               thumbColor={isSeniorMode ? '#FFFFFF' : colors.textMuted}
+              accessible={true}
+              accessibilityRole="switch"
+              accessibilityLabel="Senior Citizen Mode Toggle"
+              accessibilityValue={{ text: isSeniorMode ? 'Enabled' : 'Disabled' }}
+              accessibilityHint="Enlarges typography, simplifies warning strings, and adds emergency family calling"
             />
           </View>
 
@@ -94,6 +105,9 @@ export default function SettingsScreen({ navigation }: SettingsScreenProps) {
               placeholder="+91 98765 43210 (Default: 112)"
               placeholderTextColor={colors.textMuted}
               keyboardType="phone-pad"
+              accessible={true}
+              accessibilityLabel="Emergency Contact Phone Number"
+              accessibilityHint="Enter family member phone number for one-tap calling"
             />
           </View>
         </View>

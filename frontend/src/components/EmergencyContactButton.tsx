@@ -66,6 +66,10 @@ export default function EmergencyContactButton() {
       style={styles.button}
       onPress={handlePress}
       activeOpacity={0.8}
+      accessible={true}
+      accessibilityRole="button"
+      accessibilityLabel={`Call emergency family contact ${contactNumber || '112'}`}
+      accessibilityHint="Directly dials your configured emergency family contact number"
     >
       <Text style={styles.icon}>📞</Text>
       <Text style={styles.label}>Call Family</Text>

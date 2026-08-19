@@ -40,6 +40,10 @@ export default function TTSControl({ text, lang }: TTSControlProps) {
       style={styles.container}
       onPress={handlePress}
       activeOpacity={0.7}
+      accessible={true}
+      accessibilityRole="button"
+      accessibilityLabel={muted ? 'Play spoken warning aloud' : 'Stop spoken warning'}
+      accessibilityHint="Toggles voice audio for the warning message"
     >
       <Text style={styles.icon}>{muted ? '🔇' : '🔊'}</Text>
     </TouchableOpacity>

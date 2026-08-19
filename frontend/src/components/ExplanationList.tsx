@@ -21,10 +21,21 @@ export default function ExplanationList({ explanations, tier }: ExplanationListP
   if (!explanations || explanations.length === 0) return null;
 
   return (
-    <View style={styles.container}>
+    <View
+      style={styles.container}
+      accessible={true}
+      accessibilityRole="summary"
+      accessibilityLabel="Risk Factor Breakdown"
+    >
       <Text style={styles.heading}>Risk Factor Breakdown</Text>
       {explanations.map((item, index) => (
-        <View key={index} style={styles.row}>
+        <View
+          key={index}
+          style={styles.row}
+          accessible={true}
+          accessibilityRole="text"
+          accessibilityLabel={`Factor ${index + 1}: ${item}`}
+        >
           <View style={[styles.bullet, { backgroundColor: tierColor }]} />
           <Text style={styles.text}>{item}</Text>
         </View>

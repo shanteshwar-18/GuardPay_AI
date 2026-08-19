@@ -54,10 +54,18 @@ export default function NumericInput({
   return (
     <View style={styles.container}>
       {/* Dots */}
-      <View style={styles.dotsContainer}>
+      <View
+        style={styles.dotsContainer}
+        accessible={true}
+        accessibilityRole="text"
+        accessibilityLabel={`${value.length} of ${length} digits entered`}
+      >
         {Array.from({ length }).map((_, i) => (
           <View
             key={i}
+            accessible={true}
+            accessibilityRole="none"
+            accessibilityLabel={`Digit ${i + 1}: ${i < value.length ? 'filled' : 'empty'}`}
             style={[
               styles.dot,
               i < value.length && { backgroundColor: dotColor, borderColor: dotColor },
@@ -80,6 +88,10 @@ export default function NumericInput({
             onPress={() => handleKeyPress(key)}
             disabled={key === '' || disabled}
             activeOpacity={0.6}
+            accessible={key !== ''}
+            accessibilityRole="button"
+            accessibilityLabel={key === '⌫' ? 'Backspace' : `Number ${key}`}
+            accessibilityHint={key === '⌫' ? 'Deletes the last entered digit' : `Enters number ${key}`}
           >
             <Text
               style={[

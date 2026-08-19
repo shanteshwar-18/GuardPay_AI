@@ -194,6 +194,10 @@ export default function InterceptScreen({
                 status === 'FROZEN' ? colors.success + '40' : tierColor + '40',
             },
           ]}
+          accessible={true}
+          accessibilityLiveRegion="polite"
+          accessibilityRole="text"
+          accessibilityLabel={`Live status: ${STATUS_MESSAGES[status]}`}
         >
           <Text
             style={[
@@ -212,6 +216,10 @@ export default function InterceptScreen({
           style={styles.cancelButton}
           onPress={() => navigation.popToTop()}
           activeOpacity={0.8}
+          accessible={true}
+          accessibilityRole="button"
+          accessibilityLabel="Cancel transaction and return to home screen"
+          accessibilityHint="Payment is blocked for security. Tapping cancel returns home safely."
         >
           <Text style={styles.cancelButtonText}>Cancel</Text>
         </TouchableOpacity>
