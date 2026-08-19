@@ -32,6 +32,8 @@ import ExplanationList from '../components/ExplanationList';
 import NumericInput from '../components/NumericInput';
 import TTSControl from '../components/TTSControl';
 import { warn, stopSpeech, SupportedLanguage } from '../services/tts';
+import { useSeniorMode } from '../context/SeniorModeContext';
+import { simplifyExplanations } from '../i18n/simplifiedStrings';
 
 const HOLD_DURATION_SECONDS = 30;
 
@@ -52,9 +54,15 @@ export default function HoldScreen({
   const [secondsLeft, setSecondsLeft] = useState(HOLD_DURATION_SECONDS);
   const [isVerified, setIsVerified] = useState(false);
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const { isSeniorMode } = useSeniorMode();
+
+  // Use simplified strings in senior mode
+  const displayExplanations = isSeniorMode
+    ? simplifyExplanations(riskResponse.explanation)
+    : riskResponse.explanation;
 
   // TTS: speak warning aloud on mount (Prompt 5)
-  const warningText = riskResponse.explanation.join('. ');
+  const warningText = displayExplanations.join('. ');
   useEffect(() => {
     warn(warningText, detectedLanguage);
     return () => {
@@ -157,12 +165,13 @@ export default function HoldScreen({
             score={riskResponse.score}
             tier={riskResponse.tier}
             size={100}
+            hideNumber={isSeniorMode}
           />
         </View>
 
-        {/* Explanation List */}
+        {/* Explanation List (simplified in senior mode) */}
         <ExplanationList
-          explanations={riskResponse.explanation}
+          explanations={displayExplanations}
           tier={riskResponse.tier}
         />
 

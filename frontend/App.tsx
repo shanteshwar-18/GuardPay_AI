@@ -2,6 +2,7 @@ import { StatusBar } from 'expo-status-bar';
 import { StyleSheet, Text, View, ActivityIndicator } from 'react-native';
 import { SeniorModeProvider, useSeniorMode } from './src/context/SeniorModeContext';
 import SeniorModeBanner from './src/components/SeniorModeBanner';
+import EmergencyContactButton from './src/components/EmergencyContactButton';
 import config from './src/config';
 
 function AppContent() {
@@ -33,6 +34,9 @@ function AppContent() {
         <Text style={styles.info}>Senior Mode: {config.SENIOR_MODE_DEFAULT ? 'ON' : 'OFF'}</Text>
         <StatusBar style="light" />
       </View>
+
+      {/* Emergency Contact — root level, visible when senior mode active */}
+      <EmergencyContactButton />
     </View>
   );
 }

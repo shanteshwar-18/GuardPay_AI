@@ -31,6 +31,8 @@ import RiskGauge from '../components/RiskGauge';
 import ExplanationList from '../components/ExplanationList';
 import TTSControl from '../components/TTSControl';
 import { warn, stopSpeech, SupportedLanguage } from '../services/tts';
+import { useSeniorMode } from '../context/SeniorModeContext';
+import { simplifyExplanations } from '../i18n/simplifiedStrings';
 
 interface WarningScreenProps {
   riskResponse: RiskScoreResponse;
@@ -47,13 +49,19 @@ export default function WarningScreen({
   detectedLanguage = 'EN',
 }: WarningScreenProps) {
   const tierColor = TIER_COLORS.WARNING;
+  const { isSeniorMode } = useSeniorMode();
+
+  // Use simplified strings in senior mode
+  const displayExplanations = isSeniorMode
+    ? simplifyExplanations(riskResponse.explanation)
+    : riskResponse.explanation;
 
   // TTS: speak warning aloud on mount (Prompt 5)
-  const warningText = riskResponse.explanation.join('. ');
+  const warningText = displayExplanations.join('. ');
   useEffect(() => {
     warn(warningText, detectedLanguage);
     return () => {
-      stopSpeech(); // Clean up on screen leave
+      stopSpeech();
     };
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -82,6 +90,7 @@ export default function WarningScreen({
               score={riskResponse.score}
               tier={riskResponse.tier}
               size={140}
+              hideNumber={isSeniorMode}
             />
           </View>
 
@@ -93,9 +102,9 @@ export default function WarningScreen({
           </View>
         </View>
 
-        {/* SHAP Explanation List */}
+        {/* SHAP Explanation List (simplified in senior mode) */}
         <ExplanationList
-          explanations={riskResponse.explanation}
+          explanations={displayExplanations}
           tier={riskResponse.tier}
         />
 
