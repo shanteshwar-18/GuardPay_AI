@@ -1,22 +1,39 @@
 """
 GuardPay AI — POST /api/v1/risk-score
-PROMPT 6: Placeholder Logic (unblocks frontend team immediately)
-PROMPT 7: Real asyncio.gather() wiring (Phase 4.3 — replaces placeholder)
+PROMPT 7: Real asyncio.gather() AI module wiring — Phase 4.3
+Replaces placeholder logic with concurrent calls to all 6 AI modules.
+Target: response < 3 seconds for complete evaluation.
+
+Author: Shanteshwar (Backend Lead)
 """
 
 import time
 import asyncio
 import logging
+import base64
 
 from fastapi import APIRouter, HTTPException
 from backend.schemas.models import (
     RiskScoreRequest, RiskScoreResponse, RiskTier, RiskFactor
 )
 from backend.core.config import settings
+from backend.services.risk_fusion import compute_risk
+from backend.services.reputation_service import get_reputation
+from backend.services.beneficiary_cache import is_new_beneficiary
+from backend.services.ai_stubs import (
+    analyze_audio,
+    transcribe_audio,
+    detect_coercion,
+    analyze_behaviour,
+)
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
 
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Helpers
+# ─────────────────────────────────────────────────────────────────────────────
 
 def _determine_tier(score: float) -> RiskTier:
     """Map numeric score to risk tier per Solution Document thresholds."""
@@ -39,121 +56,237 @@ def _recommended_action(tier: RiskTier) -> str:
 
 
 # ─────────────────────────────────────────────────────────────────────────────
-# PROMPT 6 — Placeholder logic (integrable by Nikita/Raghav immediately)
-# TODO (PROMPT 7): replace _placeholder_risk() with real asyncio.gather() calls
+# PROMPT 7 — Core: concurrent AI module evaluation via asyncio.gather()
 # ─────────────────────────────────────────────────────────────────────────────
 
-async def _placeholder_risk(req: RiskScoreRequest) -> tuple[float, list[RiskFactor]]:
+async def _evaluate_all_modules(req: RiskScoreRequest) -> dict[str, float]:
     """
-    Simple heuristic placeholder — enough for frontend integration.
-    Will be replaced by real AI module calls in PROMPT 7 (Phase 4.3).
+    Runs all 6 AI signal modules concurrently via asyncio.gather().
+    Each module returns a normalised 0–1 factor score.
+    Modules that fail return 0.0 (safe default) — backend stays alive.
+
+    Modules:
+      1. audio       → CNN voice-clone probability (Jatin's model)
+      2. text        → NLP coercion language score (Groq Llama 3)
+      3. ocr         → Scam-screen OCR factor
+      4. reputation  → Bank reputation network factor
+      5. new_beneficiary → Bloom filter + amount heuristic
+      6. device_behaviour → Device duress signals
     """
-    score = 0.0
-    factors: list[RiskFactor] = []
 
-    # Heuristic 1: Large amount to unknown beneficiary
-    if req.amount > 10000:
-        score += 20
-        factors.append(RiskFactor(
-            name="High Amount",
-            contribution_points=20.0,
-            weight=0.20,
-            raw_score=1.0,
-            description=f"Transaction amount ₹{req.amount:,.0f} exceeds ₹10,000 threshold."
-        ))
+    # ── Prepare coroutines ───────────────────────────────────────────────────
+    async def get_audio_factor() -> float:
+        try:
+            return await analyze_audio(req.audio_base64)
+        except Exception as e:
+            logger.warning(f"[audio_analyzer] failed: {e}")
+            return 0.0
 
-    # Heuristic 2: Screen sharing active
-    if req.is_screen_sharing:
-        score += 30
-        factors.append(RiskFactor(
-            name="Screen Sharing Active",
-            contribution_points=30.0,
-            weight=0.15,
-            raw_score=1.0,
-            description="Screen sharing detected — a common scammer control vector."
-        ))
+    async def get_text_factor() -> float:
+        try:
+            transcript = await transcribe_audio(req.audio_base64)
+            return await detect_coercion(transcript)
+        except Exception as e:
+            logger.warning(f"[coercion_engine] failed: {e}")
+            return 0.0
 
-    # Heuristic 3: Device behaviour signals
-    if req.device_behaviour:
-        db = req.device_behaviour
-        if db.app_switch_locked:
-            score += 25
-            factors.append(RiskFactor(
-                name="App Switch Locked",
-                contribution_points=25.0,
-                weight=0.10,
-                raw_score=1.0,
-                description="User unable to switch apps — indicative of psychological duress."
-            ))
-        if db.screen_share_duration_seconds > 120:
-            score += 15
-            factors.append(RiskFactor(
-                name="Long Screen-Share Duration",
-                contribution_points=15.0,
-                weight=0.10,
-                raw_score=min(1.0, db.screen_share_duration_seconds / 300),
-                description=f"Screen shared for {db.screen_share_duration_seconds}s — unusually long."
-            ))
+    async def get_ocr_factor() -> float:
+        try:
+            if not req.ocr_screenshot_base64:
+                return 1.0 if req.is_screen_sharing else 0.0
+            # Inline OCR using the scam phrase matcher from ocr router
+            from backend.routers.ocr import _detect_scam_phrases
+            import base64 as b64
+            try:
+                import pytesseract
+                from PIL import Image
+                import io
+                img_bytes = b64.b64decode(req.ocr_screenshot_base64)
+                img = Image.open(io.BytesIO(img_bytes))
+                text = pytesseract.image_to_string(img)
+                detected = _detect_scam_phrases(text)
+                return 1.0 if detected else 0.0
+            except ImportError:
+                # pytesseract not available — use screen-share flag as proxy
+                return 0.8 if req.is_screen_sharing else 0.0
+        except Exception as e:
+            logger.warning(f"[ocr_engine] failed: {e}")
+            return 0.0
 
-    # Heuristic 4: Audio present (placeholder — will be replaced by CNN in Prompt 7)
-    if req.audio_base64:
-        score += 10  # placeholder contribution
-        factors.append(RiskFactor(
-            name="Audio Signal (Placeholder)",
-            contribution_points=10.0,
-            weight=0.25,
-            raw_score=0.4,
-            description="[PLACEHOLDER] CNN voice-clone analysis not yet wired. (Phase 4.3)"
-        ))
+    async def get_reputation_factor() -> float:
+        try:
+            rep = await get_reputation(req.receiver_upi_id)
+            return rep.get("reputation_factor", 0.0)
+        except Exception as e:
+            logger.warning(f"[reputation_service] failed: {e}")
+            return 0.0
 
-    score = min(100.0, score)
-    return score, factors[:3]  # return top-3 factors
+    async def get_new_beneficiary_factor() -> float:
+        try:
+            is_new = is_new_beneficiary(req.sender_upi_id, req.receiver_upi_id)
+            if not is_new:
+                return 0.0
+            # Scale by amount: large transfer to new beneficiary = higher risk
+            amount_factor = min(1.0, req.amount / 100_000)  # max at ₹1L
+            # Odd-hour bonus (not implemented here — would use datetime)
+            return min(1.0, 0.6 + (0.4 * amount_factor))
+        except Exception as e:
+            logger.warning(f"[new_beneficiary] failed: {e}")
+            return 0.0
 
+    async def get_behaviour_factor() -> float:
+        try:
+            return await analyze_behaviour(req.device_behaviour)
+        except Exception as e:
+            logger.warning(f"[behaviour_analyzer] failed: {e}")
+            return 0.0
+
+    # ── Concurrent execution — all modules run in parallel ───────────────────
+    results = await asyncio.gather(
+        get_audio_factor(),
+        get_text_factor(),
+        get_ocr_factor(),
+        get_reputation_factor(),
+        get_new_beneficiary_factor(),
+        get_behaviour_factor(),
+        return_exceptions=False,  # individual try/except handles per-module safety
+    )
+
+    audio_f, text_f, ocr_f, reputation_f, new_ben_f, behaviour_f = results
+
+    logger.info(
+        f"[risk-score] factors → "
+        f"audio={audio_f:.3f} text={text_f:.3f} ocr={ocr_f:.3f} "
+        f"reputation={reputation_f:.3f} new_ben={new_ben_f:.3f} behaviour={behaviour_f:.3f}"
+    )
+
+    return {
+        "audio":            audio_f,
+        "text":             text_f,
+        "ocr":              ocr_f,
+        "reputation":       reputation_f,
+        "new_beneficiary":  new_ben_f,
+        "device_behaviour": behaviour_f,
+    }
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Main endpoint
+# ─────────────────────────────────────────────────────────────────────────────
 
 @router.post(
     "/risk-score",
     response_model=RiskScoreResponse,
     summary="Evaluate transaction risk score",
     description=(
-        "Multi-modal fraud risk evaluation. Returns a score 0–100 and a tier "
-        "(SAFE / WARNING / ELEVATED / HARD_INTERCEPT). "
-        "Phase 1.4 placeholder — real AI wiring in Phase 4.3."
+        "Multi-modal fraud risk evaluation via asyncio.gather(). "
+        "6 independent modules run concurrently → weighted risk fusion → SHAP top-3. "
+        "Target latency: < 3 seconds."
     ),
 )
 async def evaluate_risk(req: RiskScoreRequest) -> RiskScoreResponse:
     start = time.perf_counter()
-    logger.info(f"Risk evaluation for txn={req.transaction_id} amount={req.amount}")
+    logger.info(
+        f"[RISK] txn={req.transaction_id} "
+        f"sender={req.sender_upi_id} receiver={req.receiver_upi_id} "
+        f"amount={req.amount} screen_share={req.is_screen_sharing}"
+    )
 
     try:
-        # TODO PROMPT 7: replace with real asyncio.gather() AI module calls
-        score, factors = await _placeholder_risk(req)
+        # ── PROMPT 7: concurrent AI module calls ─────────────────────────────
+        factor_scores = await _evaluate_all_modules(req)
+
+        # ── Risk fusion (weighted formula → 0–100) ───────────────────────────
+        risk_score, explanation = compute_risk(factor_scores)
+
     except Exception as exc:
-        logger.error(f"Risk evaluation error: {exc}", exc_info=True)
+        logger.error(f"[RISK] Critical failure txn={req.transaction_id}: {exc}", exc_info=True)
         raise HTTPException(status_code=500, detail=f"Risk evaluation failed: {exc}")
 
-    tier = _determine_tier(score)
+    tier = _determine_tier(risk_score)
     elapsed_ms = (time.perf_counter() - start) * 1000
 
-    # Evidence bundle — triggered in PROMPT 10 (Phase 6.2)
+    if elapsed_ms > 3000:
+        logger.warning(f"[RISK] Latency SLA breach: {elapsed_ms:.0f}ms for txn={req.transaction_id}")
+
+    # ── Evidence Bundle (PROMPT 10 wires real encryption) ────────────────────
     evidence_bundle_id: str | None = None
-    if score >= settings.RISK_THRESHOLD_ELEVATED:
-        # TODO PROMPT 10: evidence_bundle_id = await build_evidence_bundle(req, score, factors)
-        evidence_bundle_id = f"EVD-{req.transaction_id[:8]}-PLACEHOLDER"
+    if risk_score >= settings.RISK_THRESHOLD_ELEVATED:
+        try:
+            from backend.services.evidence_builder import build_evidence_bundle
+            evidence_bundle_id = await build_evidence_bundle(
+                txn_id=req.transaction_id,
+                upi_id=req.receiver_upi_id,
+                amount=req.amount,
+                ocr_text="",
+                transcript="",
+                audio_base64=req.audio_base64,
+                shap_breakdown=explanation,
+            )
+        except ImportError:
+            evidence_bundle_id = f"EVD-{req.transaction_id[:8]}-PENDING"
+        except Exception as e:
+            logger.error(f"[evidence_builder] failed: {e}")
+            evidence_bundle_id = f"EVD-{req.transaction_id[:8]}-ERROR"
 
-    # Twilio IVR — triggered in PROMPT 8 (Phase 6.1)
+    # ── Twilio IVR (PROMPT 8 wires real call) ────────────────────────────────
     ivr_initiated = False
-    if tier == RiskTier.HARD_INTERCEPT:
-        # TODO PROMPT 8: await initiate_ivr_call(req.trusted_contact_number, req.transaction_id)
-        ivr_initiated = True
-        logger.warning(f"HARD_INTERCEPT for txn={req.transaction_id} — IVR stub (PROMPT 8 pending)")
+    if tier == RiskTier.HARD_INTERCEPT and req.trusted_contact_number:
+        try:
+            from backend.services.twilio_service import initiate_ivr_call
+            await initiate_ivr_call(
+                to_number=req.trusted_contact_number,
+                transaction_id=req.transaction_id,
+                amount=req.amount,
+                receiver_upi_id=req.receiver_upi_id,
+            )
+            ivr_initiated = True
+        except ImportError:
+            logger.warning("[Twilio] twilio_service not yet available — IVR skipped (PROMPT 8)")
+        except Exception as e:
+            logger.error(f"[Twilio] IVR failed: {e}")
 
-    logger.info(f"Score={score:.1f} Tier={tier} Time={elapsed_ms:.1f}ms txn={req.transaction_id}")
+    # ── Bank Alert (PROMPT 11 wires real mTLS call) ───────────────────────────
+    if tier in (RiskTier.HARD_INTERCEPT, RiskTier.ELEVATED):
+        try:
+            from backend.services.bank_alert_service import send_alert
+            asyncio.create_task(send_alert(
+                transaction_id=req.transaction_id,
+                risk_score=risk_score,
+                contributing_factors=[f.name for f in explanation],
+                beneficiary_upi_id=req.receiver_upi_id,
+                amount=req.amount,
+                evidence_bundle_id=evidence_bundle_id,
+            ))
+        except ImportError:
+            logger.warning("[BankAlert] bank_alert_service not yet available (PROMPT 11)")
+        except Exception as e:
+            logger.error(f"[BankAlert] failed: {e}")
+
+    # ── Update session store ──────────────────────────────────────────────────
+    try:
+        from backend.routers.session import update_session
+        from datetime import datetime, timezone
+        update_session(
+            req.transaction_id,
+            status="BLOCKED" if tier == RiskTier.HARD_INTERCEPT else "PENDING",
+            risk_score=risk_score,
+            updated_at=datetime.now(timezone.utc).isoformat(),
+        )
+    except Exception as e:
+        logger.warning(f"Session update failed: {e}")
+
+    logger.info(
+        f"[RISK] DONE txn={req.transaction_id} score={risk_score:.1f} "
+        f"tier={tier} ivr={ivr_initiated} evidence={evidence_bundle_id} "
+        f"latency={elapsed_ms:.1f}ms"
+    )
 
     return RiskScoreResponse(
         transaction_id=req.transaction_id,
-        risk_score=round(score, 2),
+        risk_score=round(risk_score, 2),
         tier=tier,
-        explanation=factors,
+        explanation=explanation,
         recommended_action=_recommended_action(tier),
         evidence_bundle_id=evidence_bundle_id,
         ivr_call_initiated=ivr_initiated,
