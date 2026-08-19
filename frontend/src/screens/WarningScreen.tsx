@@ -18,7 +18,8 @@ import {
   StyleSheet,
   ScrollView,
 } from 'react-native';
-import { RiskScoreResponse } from '../types';
+import { NativeStackScreenProps } from '@react-navigation/native-stack';
+import { RootStackParamList } from '../types';
 import {
   colors,
   typography,
@@ -34,20 +35,14 @@ import { warn, stopSpeech, SupportedLanguage } from '../services/tts';
 import { useSeniorMode } from '../context/SeniorModeContext';
 import { simplifyExplanations } from '../i18n/simplifiedStrings';
 
-interface WarningScreenProps {
-  riskResponse: RiskScoreResponse;
-  onProceed?: () => void;
-  onCancel?: () => void;
-  /** Detected language for TTS — defaults to EN */
-  detectedLanguage?: SupportedLanguage;
-}
+type WarningScreenProps = NativeStackScreenProps<RootStackParamList, 'Warning'>;
 
 export default function WarningScreen({
-  riskResponse,
-  onProceed,
-  onCancel,
-  detectedLanguage = 'EN',
+  route,
+  navigation,
 }: WarningScreenProps) {
+  const { riskResponse } = route.params;
+  const detectedLanguage: SupportedLanguage = 'EN';
   const tierColor = TIER_COLORS.WARNING;
   const { isSeniorMode } = useSeniorMode();
 
@@ -64,6 +59,14 @@ export default function WarningScreen({
       stopSpeech();
     };
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const handleCancel = () => {
+    navigation.popToTop();
+  };
+
+  const handleProceed = () => {
+    navigation.navigate('PIN', { riskResponse });
+  };
 
   return (
     <View style={styles.container}>
@@ -121,7 +124,7 @@ export default function WarningScreen({
         <View style={styles.actions}>
           <TouchableOpacity
             style={[styles.button, styles.cancelButton]}
-            onPress={onCancel}
+            onPress={handleCancel}
             activeOpacity={0.8}
           >
             <Text style={styles.cancelButtonText}>Cancel Transaction</Text>
@@ -129,7 +132,7 @@ export default function WarningScreen({
 
           <TouchableOpacity
             style={[styles.button, styles.proceedButton]}
-            onPress={onProceed}
+            onPress={handleProceed}
             activeOpacity={0.8}
           >
             <Text style={styles.proceedButtonText}>Proceed Anyway</Text>

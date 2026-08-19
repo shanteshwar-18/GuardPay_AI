@@ -76,6 +76,8 @@ export const radius = {
   full: 9999,
 } as const;
 
+import { useSeniorMode } from './context/SeniorModeContext';
+
 /**
  * Hook: useScaledFontSize
  *
@@ -84,9 +86,8 @@ export const radius = {
  */
 export function useScaledFontSize(base: number): number {
   try {
-    const { SeniorModeContext } = require('./context/SeniorModeContext');
-    const context = useContext(SeniorModeContext);
-    if (context?.isSeniorMode) {
+    const { isSeniorMode } = useSeniorMode();
+    if (isSeniorMode) {
       return base * 1.5;
     }
   } catch {

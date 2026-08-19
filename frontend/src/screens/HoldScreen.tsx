@@ -18,7 +18,8 @@ import {
   ScrollView,
   Alert,
 } from 'react-native';
-import { RiskScoreResponse } from '../types';
+import { NativeStackScreenProps } from '@react-navigation/native-stack';
+import { RootStackParamList } from '../types';
 import {
   colors,
   typography,
@@ -37,20 +38,14 @@ import { simplifyExplanations } from '../i18n/simplifiedStrings';
 
 const HOLD_DURATION_SECONDS = 30;
 
-interface HoldScreenProps {
-  riskResponse: RiskScoreResponse;
-  onTimerExpired?: () => void;
-  onVerified?: () => void;
-  /** Detected language for TTS — defaults to EN */
-  detectedLanguage?: SupportedLanguage;
-}
+type HoldScreenProps = NativeStackScreenProps<RootStackParamList, 'Hold'>;
 
 export default function HoldScreen({
-  riskResponse,
-  onTimerExpired,
-  onVerified,
-  detectedLanguage = 'EN',
+  route,
+  navigation,
 }: HoldScreenProps) {
+  const { riskResponse } = route.params;
+  const detectedLanguage: SupportedLanguage = 'EN';
   const [secondsLeft, setSecondsLeft] = useState(HOLD_DURATION_SECONDS);
   const [isVerified, setIsVerified] = useState(false);
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -95,10 +90,10 @@ export default function HoldScreen({
       Alert.alert(
         'Transaction Cancelled',
         'Cooling-off period expired. Returning to home.',
-        [{ text: 'OK', onPress: onTimerExpired }]
+        [{ text: 'OK', onPress: () => navigation.popToTop() }]
       );
     }
-  }, [secondsLeft, isVerified, onTimerExpired]);
+  }, [secondsLeft, isVerified, navigation]);
 
   // Handle OTP verification
   const handleOTPComplete = (otp: string) => {
@@ -108,7 +103,7 @@ export default function HoldScreen({
     Alert.alert(
       'Verification Successful',
       'You may now proceed to enter your PIN.',
-      [{ text: 'Continue', onPress: onVerified }]
+      [{ text: 'Continue', onPress: () => navigation.navigate('PIN', { riskResponse }) }]
     );
   };
 

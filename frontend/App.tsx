@@ -1,9 +1,21 @@
+/**
+ * GuardPay AI — Root App Component
+ *
+ * Wraps the app with:
+ * 1. SeniorModeProvider (AsyncStorage-persisted state)
+ * 2. NavigationContainer
+ * 3. SeniorModeBanner (top of every screen)
+ * 4. EmergencyContactButton (bottom-right FAB when senior mode active)
+ */
+
+import React from 'react';
+import { View, StyleSheet, ActivityIndicator } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
-import { StyleSheet, Text, View, ActivityIndicator } from 'react-native';
+import { NavigationContainer } from '@react-navigation/native';
 import { SeniorModeProvider, useSeniorMode } from './src/context/SeniorModeContext';
 import SeniorModeBanner from './src/components/SeniorModeBanner';
 import EmergencyContactButton from './src/components/EmergencyContactButton';
-import config from './src/config';
+import AppNavigator from './src/navigation/AppNavigator';
 
 function AppContent() {
   const { isLoading } = useSeniorMode();
@@ -11,32 +23,26 @@ function AppContent() {
   // Show splash while hydrating senior mode from AsyncStorage
   if (isLoading) {
     return (
-      <View style={styles.container}>
+      <View style={styles.loading}>
         <ActivityIndicator size="large" color="#6C63FF" />
       </View>
     );
   }
 
-  // Log config on launch to verify env contract (Prompt 1 checkpoint)
-  console.log('[GuardPay] Config loaded:', config);
-
   return (
     <View style={styles.wrapper}>
-      {/* Senior Mode Banner — root level, persists across all screens */}
+      {/* Senior Mode Banner — root level */}
       <SeniorModeBanner />
 
-      <View style={styles.container}>
-        <Text style={styles.title}>🛡️ GuardPay AI</Text>
-        <Text style={styles.subtitle}>Real-Time UPI Fraud Intervention Engine</Text>
-        <Text style={styles.info}>API: {config.API_BASE_URL}</Text>
-        <Text style={styles.info}>WS: {config.WS_BASE_URL}</Text>
-        <Text style={styles.info}>Language: {config.DEFAULT_LANGUAGE}</Text>
-        <Text style={styles.info}>Senior Mode: {config.SENIOR_MODE_DEFAULT ? 'ON' : 'OFF'}</Text>
-        <StatusBar style="light" />
-      </View>
+      {/* Main Navigation */}
+      <NavigationContainer>
+        <AppNavigator />
+      </NavigationContainer>
 
-      {/* Emergency Contact — root level, visible when senior mode active */}
+      {/* Emergency Contact FAB — visible when senior mode active */}
       <EmergencyContactButton />
+
+      <StatusBar style="light" />
     </View>
   );
 }
@@ -54,29 +60,10 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#0F0F1A',
   },
-  container: {
+  loading: {
     flex: 1,
     backgroundColor: '#0F0F1A',
     alignItems: 'center',
     justifyContent: 'center',
-    padding: 24,
-  },
-  title: {
-    fontSize: 28,
-    fontWeight: 'bold',
-    color: '#FFFFFF',
-    marginBottom: 8,
-  },
-  subtitle: {
-    fontSize: 14,
-    color: '#8B8BA3',
-    marginBottom: 32,
-    textAlign: 'center',
-  },
-  info: {
-    fontSize: 12,
-    color: '#4ADE80',
-    fontFamily: 'monospace',
-    marginBottom: 4,
   },
 });

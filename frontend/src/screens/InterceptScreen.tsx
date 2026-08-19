@@ -20,10 +20,10 @@ import {
   Animated,
   Easing,
 } from 'react-native';
-import { RiskScoreResponse, SessionStatus } from '../types';
+import { NativeStackScreenProps } from '@react-navigation/native-stack';
+import { RootStackParamList, SessionStatus } from '../types';
 import { colors, typography, spacing, radius, TIER_COLORS } from '../theme';
 import { getSessionStatus } from '../services/api';
-
 
 /** Status display messages */
 const STATUS_MESSAGES: Record<SessionStatus, string> = {
@@ -38,18 +38,14 @@ const FALLBACK_STATUS_CYCLE: SessionStatus[] = [
   'AWAITING_RESPONSE', 'AWAITING_RESPONSE', 'FROZEN',
 ];
 
-interface InterceptScreenProps {
-  riskResponse: RiskScoreResponse;
-  onCancel?: () => void;
-  /** Transaction ID for status polling */
-  transactionId?: string;
-}
+type InterceptScreenProps = NativeStackScreenProps<RootStackParamList, 'Intercept'>;
 
 export default function InterceptScreen({
-  riskResponse,
-  onCancel,
-  transactionId,
+  route,
+  navigation,
 }: InterceptScreenProps) {
+  const { riskResponse } = route.params;
+  const transactionId = riskResponse.evidence_bundle_id;
   const [status, setStatus] = useState<SessionStatus>('CALLING');
   const scaleAnim = useRef(new Animated.Value(1)).current;
   const opacityAnim = useRef(new Animated.Value(0.6)).current;
@@ -214,7 +210,7 @@ export default function InterceptScreen({
         {/* Only Cancel button — NO path to PIN */}
         <TouchableOpacity
           style={styles.cancelButton}
-          onPress={onCancel}
+          onPress={() => navigation.popToTop()}
           activeOpacity={0.8}
         >
           <Text style={styles.cancelButtonText}>Cancel</Text>
@@ -230,7 +226,11 @@ const styles = StyleSheet.create({
     backgroundColor: '#1A0000',
   },
   redOverlay: {
-    ...StyleSheet.absoluteFillObject,
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
     backgroundColor: TIER_COLORS.HARD_INTERCEPT + '08',
   },
   content: {

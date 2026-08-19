@@ -14,23 +14,17 @@ import {
   StyleSheet,
   Vibration,
 } from 'react-native';
-import { RiskScoreResponse } from '../types';
+import { NativeStackScreenProps } from '@react-navigation/native-stack';
+import { RootStackParamList } from '../types';
 import { colors, typography, spacing, radius, TIER_COLORS } from '../theme';
 
-interface PINScreenProps {
-  riskResponse: RiskScoreResponse;
-  onSuccess?: () => void;
-  onCancel?: () => void;
-}
+type PINScreenProps = NativeStackScreenProps<RootStackParamList, 'PIN'>;
 
 const PIN_LENGTH = 6;
 const KEYS = ['1', '2', '3', '4', '5', '6', '7', '8', '9', '', '0', '⌫'];
 
-export default function PINScreen({
-  riskResponse,
-  onSuccess,
-  onCancel,
-}: PINScreenProps) {
+export default function PINScreen({ route, navigation }: PINScreenProps) {
+  const { riskResponse } = route.params;
   const [pin, setPin] = useState('');
   const [error, setError] = useState(false);
 
@@ -49,7 +43,7 @@ export default function PINScreen({
     if (newPin.length === PIN_LENGTH) {
       // For hackathon demo — accept any 6-digit PIN
       setTimeout(() => {
-        onSuccess?.();
+        navigation.navigate('Success');
       }, 300);
     }
   };
@@ -106,7 +100,11 @@ export default function PINScreen({
       </View>
 
       {/* Cancel */}
-      <TouchableOpacity style={styles.cancelButton} onPress={onCancel}>
+      <TouchableOpacity
+        style={styles.cancelButton}
+        onPress={() => navigation.popToTop()}
+        activeOpacity={0.7}
+      >
         <Text style={styles.cancelText}>Cancel</Text>
       </TouchableOpacity>
     </View>
