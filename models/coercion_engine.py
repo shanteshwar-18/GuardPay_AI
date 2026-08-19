@@ -27,8 +27,10 @@ from pathlib import Path
 import numpy as np
 
 # ── Constants ──────────────────────────────────────────────────────────────────
-TFIDF_THRESHOLD_COERCIVE = 0.35    # Above → COERCIVE
-TFIDF_THRESHOLD_UNCERTAIN = 0.15   # Between → escalate to Groq
+TFIDF_THRESHOLD_COERCIVE  = 0.35    # Above → COERCIVE (clear)
+TFIDF_THRESHOLD_UNCERTAIN = 0.22    # Between → escalate to Groq (raised from 0.15 to reduce FP)
+                                    # NOTE: Groq is disabled if GROQ_API_KEY is not set
+                                    # In that case, uncertain zone defaults to BENIGN (safer)
 GROQ_MODEL = "llama3-8b-8192"
 MAX_GROQ_RETRIES = 3
 
@@ -192,7 +194,8 @@ def _call_groq(text: str) -> dict:
     """Call Groq API with exponential backoff. Falls back to TF-IDF on failure."""
     api_key = os.getenv("GROQ_API_KEY")
     if not api_key:
-        print("[coercion_engine] GROQ_API_KEY not set — using TF-IDF only")
+        # No API key — uncertain zone defaults to BENIGN (safer: avoid false positives)
+        print("[coercion_engine] GROQ_API_KEY not set — using TF-IDF only (uncertain=BENIGN)")
         return None
 
     from groq import Groq
