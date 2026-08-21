@@ -1,4 +1,4 @@
-﻿name: Build Android APK
+name: Build Android APK
 
 on:
   push:
@@ -9,7 +9,7 @@ jobs:
   build-apk:
     name: Build Debug APK
     runs-on: ubuntu-latest
-    timeout-minutes: 45
+    timeout-minutes: 60
 
     steps:
       - name: Checkout repository
@@ -19,8 +19,6 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: '18'
-          cache: 'npm'
-          cache-dependency-path: frontend/GuardPayUI/package-lock.json
 
       - name: Set up JDK 17
         uses: actions/setup-java@v4
@@ -31,90 +29,182 @@ jobs:
       - name: Setup Android SDK
         uses: android-actions/setup-android@v3
 
-      - name: Install SDK platform and build-tools
+      - name: Install Android SDK components
         run: |
-          yes | sdkmanager "platform-tools" "platforms;android-34" "build-tools;34.0.0" 2>/dev/null || true
-
-      - name: Generate fresh React Native 0.75.4 android/ folder
-        run: |
-          # react-native init requires the project name as first arg, no --directory flag in 0.75.x
-          cd /tmp
-          npx react-native@0.75.4 init GuardPayNative --version 0.75.4 --skip-install --yes 2>&1 | tail -30
-          ls GuardPayNative/
-          echo "--- android folder ---"
-          ls GuardPayNative/android/
-
-      - name: Copy android folder into our project
-        run: |
-          rm -rf frontend/GuardPayUI/android
-          cp -r /tmp/GuardPayNative/android frontend/GuardPayUI/android
-          # Patch app_name
-          sed -i 's/<string name="app_name">GuardPayNative<\/string>/<string name="app_name">GuardPay AI<\/string>/g' \
-            frontend/GuardPayUI/android/app/src/main/res/values/strings.xml
-          # Add permissions
-          sed -i 's|<uses-permission android:name="android.permission.INTERNET" />|<uses-permission android:name="android.permission.INTERNET" />\n    <uses-permission android:name="android.permission.RECORD_AUDIO" />\n    <uses-permission android:name="android.permission.CALL_PHONE" />|' \
-            frontend/GuardPayUI/android/app/src/main/AndroidManifest.xml
-          cat frontend/GuardPayUI/android/app/src/main/res/values/strings.xml
+          sdkmanager "platform-tools" "platforms;android-34" "build-tools;34.0.0" 2>/dev/null | tail -3 || true
 
       - name: Install npm dependencies
         working-directory: frontend/GuardPayUI
+        run: npm install
+
+      - name: Create Android project directories
+        working-directory: frontend/GuardPayUI
         run: |
-          npm install
-          # React Native 0.75 uses the new metro config - ensure it's linked
-          ls node_modules | grep "react-native" | head -10
+          mkdir -p android/app/src/main/java/com/guardpayui
+          mkdir -p android/app/src/main/res/values
+          mkdir -p android/gradle/wrapper
 
-      - name: Set gradlew executable
-        working-directory: frontend/GuardPayUI/android
-        run: chmod +x ./gradlew
+      - name: Write all Android files
+        working-directory: frontend/GuardPayUI
+        run: |
+          python3 << PYEOF
+          import os
+          # settings.gradle
+          open("android/settings.gradle","w").write("""rootProject.name = 
+          apply from: file(\"../node_modules/@react-native-community/cli-platform-android/native_modules.gradle\"); applyNativeModulesSettingsGradle(settings)
+          include 
+          includeBuild(\"../node_modules/@react-native/gradle-plugin\")
+          """)
 
-      - name: Create local.properties
+          # root build.gradle
+          open("android/build.gradle","w").write("""buildscript {
+              ext {
+                  buildToolsVersion = "34.0.0"
+                  minSdkVersion = 23
+                  compileSdkVersion = 34
+                  targetSdkVersion = 34
+                  ndkVersion = "26.1.10909125"
+                  kotlinVersion = "1.9.24"
+              }
+              repositories { google(); mavenCentral() }
+              dependencies {
+                  classpath("com.android.tools.build:gradle")
+                  classpath("com.facebook.react:react-native-gradle-plugin")
+                  classpath("org.jetbrains.kotlin:kotlin-gradle-plugin")
+              }
+          }
+          apply plugin: "com.facebook.react.rootproject"
+          """)
+
+          open("android/gradle.properties","w").write("org.gradle.jvmargs=-Xmx4096m -XX:MaxMetaspaceSize=1024m\nandroid.useAndroidX=true\nandroid.enableJetifier=true\nREACT_NATIVE_UNSTABLE_USE_RUNTIME_SCHEDULER_ALWAYS=1\n")
+
+          open("android/app/build.gradle","w").write("""apply plugin: "com.android.application"
+          apply plugin: "org.jetbrains.kotlin.android"
+          apply plugin: "com.facebook.react"
+          react {}
+          def enableProguardInReleaseBuilds = false
+          android {
+              ndkVersion rootProject.ext.ndkVersion
+              buildToolsVersion rootProject.ext.buildToolsVersion
+              compileSdk rootProject.ext.compileSdkVersion
+              namespace "com.guardpayui"
+              defaultConfig {
+                  applicationId "com.guardpayui"
+                  minSdk rootProject.ext.minSdkVersion
+                  targetSdk rootProject.ext.targetSdkVersion
+                  versionCode 1
+                  versionName "1.0.0"
+              }
+              signingConfigs { debug { storeFile file("debug.keystore"); storePassword "android"; keyAlias "androiddebugkey"; keyPassword "android" } }
+              buildTypes {
+                  debug { signingConfig signingConfigs.debug }
+                  release { minifyEnabled enableProguardInReleaseBuilds; proguardFiles getDefaultProguardFile("proguard-android.txt"), "proguard-rules.pro"; signingConfig signingConfigs.debug }
+              }
+          }
+          dependencies { implementation("com.facebook.react:react-android"); implementation("com.facebook.react:hermes-android") }
+          apply from: file("../../node_modules/@react-native-community/cli-platform-android/native_modules.gradle"); applyNativeModulesAppBuildGradle(project)
+          """)
+
+          open("android/app/src/main/AndroidManifest.xml","w").write("""<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+              <uses-permission android:name="android.permission.INTERNET" />
+              <uses-permission android:name="android.permission.RECORD_AUDIO" />
+              <uses-permission android:name="android.permission.CALL_PHONE" />
+              <application android:name=".MainApplication" android:label="@string/app_name" android:allowBackup="false" android:theme="@style/AppTheme" android:usesCleartextTraffic="true">
+                <activity android:name=".MainActivity" android:configChanges="keyboard|keyboardHidden|orientation|screenLayout|screenSize|smallestScreenSize|uiMode" android:launchMode="singleTask" android:windowSoftInputMode="adjustResize" android:exported="true">
+                  <intent-filter><action android:name="android.intent.action.MAIN" /><category android:name="android.intent.category.LAUNCHER" /></intent-filter>
+                </activity>
+              </application>
+          </manifest>
+          """)
+
+          open("android/app/src/main/res/values/strings.xml","w").write("<resources><string name=\\"app_name\\">GuardPay AI</string></resources>")
+          open("android/app/src/main/res/values/styles.xml","w").write("<resources><style name=\\"AppTheme\\" parent=\\"Theme.AppCompat.DayNight.NoActionBar\\"></style></resources>")
+
+          open("android/app/src/main/java/com/guardpayui/MainActivity.kt","w").write("""package com.guardpayui
+          import com.facebook.react.ReactActivity
+          import com.facebook.react.ReactActivityDelegate
+          import com.facebook.react.defaults.DefaultNewArchitectureEntryPoint.fabricEnabled
+          import com.facebook.react.defaults.DefaultReactActivityDelegate
+          class MainActivity : ReactActivity() {
+            override fun getMainComponentName(): String = "GuardPayUI"
+            override fun createReactActivityDelegate(): ReactActivityDelegate = DefaultReactActivityDelegate(this, mainComponentName, fabricEnabled)
+          }
+          """)
+
+          open("android/app/src/main/java/com/guardpayui/MainApplication.kt","w").write("""package com.guardpayui
+          import android.app.Application
+          import com.facebook.react.PackageList
+          import com.facebook.react.ReactApplication
+          import com.facebook.react.ReactHost
+          import com.facebook.react.ReactNativeHost
+          import com.facebook.react.ReactPackage
+          import com.facebook.react.defaults.DefaultNewArchitectureEntryPoint.load
+          import com.facebook.react.defaults.DefaultReactHost.getDefaultReactHost
+          import com.facebook.react.defaults.DefaultReactNativeHost
+          import com.facebook.soloader.SoLoader
+          class MainApplication : Application(), ReactApplication {
+            override val reactNativeHost: ReactNativeHost = object : DefaultReactNativeHost(this) {
+                override fun getPackages(): List<ReactPackage> = PackageList(this).packages
+                override fun getJSMainModuleName(): String = "index"
+                override fun getUseDeveloperSupport(): Boolean = BuildConfig.DEBUG
+                override val isNewArchEnabled: Boolean = BuildConfig.IS_NEW_ARCHITECTURE_ENABLED
+                override val isHermesEnabled: Boolean = BuildConfig.IS_HERMES_ENABLED
+            }
+            override val reactHost: ReactHost get() = getDefaultReactHost(applicationContext, reactNativeHost)
+            override fun onCreate() { super.onCreate(); SoLoader.init(this, false); if (BuildConfig.IS_NEW_ARCHITECTURE_ENABLED) { load() } }
+          }
+          """)
+
+          open("android/gradle/wrapper/gradle-wrapper.properties","w").write("distributionBase=GRADLE_USER_HOME\ndistributionPath=wrapper/dists\ndistributionUrl=https\\://services.gradle.org/distributions/gradle-8.8-all.zip\nnetworkTimeout=10000\nvalidateDistributionUrl=true\nzipStoreBase=GRADLE_USER_HOME\nzipStorePath=wrapper/dists\n")
+          open("android/app/proguard-rules.pro","w").write("-keep class com.facebook.react.** { *; }\n")
+          print("All Android files written")
+          PYEOF
+
+      - name: Download gradle-wrapper.jar
+        working-directory: frontend/GuardPayUI/android/gradle/wrapper
+        run: |
+          curl -fsSL "https://raw.githubusercontent.com/gradle/gradle/v8.8.0/gradle/wrapper/gradle-wrapper.jar" -o gradle-wrapper.jar
+          ls -la gradle-wrapper.jar
+
+      - name: Write gradlew and generate keystore
         working-directory: frontend/GuardPayUI/android
-        run: echo "sdk.dir=$ANDROID_HOME" > local.properties
+        run: |
+          python3 -c "
+          import os, stat
+          s = 
+          open("gradlew","w").write(s)
+          os.chmod("gradlew", stat.S_IRWXU | stat.S_IRGRP | stat.S_IXGRP | stat.S_IROTH | stat.S_IXOTH)
+          print("gradlew written")
+          "
+          keytool -genkeypair -v -storetype PKCS12 -keystore app/debug.keystore -alias androiddebugkey -keyalg RSA -keysize 2048 -validity 10000 -storepass android -keypass android -dname "CN=Android Debug,O=Android,C=US"
+          echo "sdk.dir=$ANDROID_HOME" > local.properties
 
       - name: Build Debug APK
         working-directory: frontend/GuardPayUI/android
-        run: |
-          ./gradlew assembleDebug \
-            --no-daemon \
-            --info \
-            -Dorg.gradle.jvmargs="-Xmx4096m -XX:MaxMetaspaceSize=1024m" \
-            2>&1 | tail -80
+        run: ./gradlew assembleDebug --no-daemon --stacktrace 2>&1 | tail -120
 
-      - name: Find and collect APK
+      - name: Upload APK
         run: |
           mkdir -p apk-output
-          find frontend/GuardPayUI/android -name "*.apk" -type f
-          cp frontend/GuardPayUI/android/app/build/outputs/apk/debug/app-debug.apk \
-             apk-output/GuardPay-AI-v1.0-debug.apk
-          echo "APK ready: $(du -sh apk-output/GuardPay-AI-v1.0-debug.apk)"
+          cp frontend/GuardPayUI/android/app/build/outputs/apk/debug/app-debug.apk apk-output/GuardPay-AI-debug.apk
+          echo "APK: $(du -sh apk-output/GuardPay-AI-debug.apk)"
 
-      - name: Upload APK artifact
+      - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
           name: GuardPay-AI-APK
-          path: apk-output/GuardPay-AI-v1.0-debug.apk
+          path: apk-output/GuardPay-AI-debug.apk
           retention-days: 30
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
           tag_name: apk-latest
-          name: "GuardPay AI — Android APK"
+          name: "GuardPay AI - Android APK"
           body: |
-            ## 📱 GuardPay AI — Install on Android
-
-            **Built from:** `${{ github.ref_name }}` @ `${{ github.sha }}`
-
-            ### Install Steps (No Android Studio needed!)
-            1. Download `GuardPay-AI-v1.0-debug.apk` from Assets below
-            2. Transfer to phone (USB / WhatsApp / Google Drive)
-            3. Phone: Settings → Security → Enable "Install from unknown sources"
-            4. Tap the APK → Install
-            5. Open GuardPay AI ✅
-
-            ### Backend
-            Run `python run.py` on your PC. Phone and PC must be on same WiFi.
-          files: apk-output/GuardPay-AI-v1.0-debug.apk
+            ## GuardPay AI - Install on Android
+            Download GuardPay-AI-debug.apk, transfer to phone, enable unknown sources, install.
+          files: apk-output/GuardPay-AI-debug.apk
           make_latest: true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
