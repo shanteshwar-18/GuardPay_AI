@@ -18,13 +18,13 @@ from backend.core.config import settings
 async def lifespan(app: FastAPI):
     """Startup & shutdown hooks."""
     # ── Startup ──────────────────────────────────────────────────────────────
-    print("🚀 GuardPay AI backend starting up...")
+    print("[STARTUP] GuardPay AI backend starting up...")
     await init_reputation_service()
     await init_bloom_filter()
-    print("✅ Reputation service & Bloom filter ready.")
+    print("[STARTUP] Reputation service & Bloom filter ready.")
     yield
-    # ── Shutdown ─────────────────────────────────────────────────────────────
-    print("🛑 GuardPay AI backend shutting down.")
+    # -- Shutdown -------------------------------------------------------------
+    print("[SHUTDOWN] GuardPay AI backend shutting down.")
 
 
 app = FastAPI(
