@@ -169,13 +169,8 @@ jobs:
       - name: Write gradlew and generate keystore
         working-directory: frontend/GuardPayUI/android
         run: |
-          python3 -c "
-          import os, stat
-          s = 
-          open("gradlew","w").write(s)
-          os.chmod("gradlew", stat.S_IRWXU | stat.S_IRGRP | stat.S_IXGRP | stat.S_IROTH | stat.S_IXOTH)
-          print("gradlew written")
-          "
+          printf '#!/usr/bin/env sh\nAPP_HOME=$(cd "$(dirname "$0")" && pwd)\nCLASSPATH=$APP_HOME/gradle/wrapper/gradle-wrapper.jar\nif [ -n "$JAVA_HOME" ]; then JAVACMD="$JAVA_HOME/bin/java"; else JAVACMD="java"; fi\nexec "$JAVACMD" $DEFAULT_JVM_OPTS $JAVA_OPTS $GRADLE_OPTS "-Dorg.gradle.appname=gradlew" -classpath "$CLASSPATH" org.gradle.wrapper.GradleWrapperMain "$@"\n' > gradlew
+          chmod +x gradlew
           keytool -genkeypair -v -storetype PKCS12 -keystore app/debug.keystore -alias androiddebugkey -keyalg RSA -keysize 2048 -validity 10000 -storepass android -keypass android -dname "CN=Android Debug,O=Android,C=US"
           echo "sdk.dir=$ANDROID_HOME" > local.properties
 
