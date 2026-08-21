@@ -1,0 +1,164 @@
+﻿name: Build Android APK
+
+on:
+  push:
+    branches: [ main, dev ]
+  workflow_dispatch:
+
+jobs:
+  build-apk:
+    name: Build Debug APK
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+
+    steps:
+      # ── 1. Checkout ─────────────────────────────────────────────────────────
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      # ── 2. Node.js 18 (LTS — best RN 0.75 compatibility) ────────────────────
+      - name: Set up Node.js 18
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: 'npm'
+          cache-dependency-path: frontend/GuardPayUI/package-lock.json
+
+      # ── 3. JDK 17 (required for Android/Gradle) ─────────────────────────────
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+
+      # ── 4. Android SDK ───────────────────────────────────────────────────────
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Install SDK components
+        run: |
+          sdkmanager "platform-tools" "platforms;android-34" "build-tools;34.0.0" --sdk_root=$ANDROID_HOME
+
+      # ── 5. Generate a fresh React Native 0.75.4 android/ folder via init ─────
+      - name: Generate React Native Android project
+        run: |
+          cd /tmp
+          npx --yes react-native@0.75.4 init GuardPayNative \
+            --version 0.75.4 \
+            --skip-install \
+            --directory GuardPayNative \
+            2>&1 | tail -20
+          echo "Init done"
+          ls GuardPayNative/
+
+      # ── 6. Replace our android folder with the clean generated one ───────────
+      - name: Replace android folder with clean generated one
+        run: |
+          # Remove our manually created android folder
+          rm -rf frontend/GuardPayUI/android
+          # Copy the clean one from react-native init
+          cp -r /tmp/GuardPayNative/android frontend/GuardPayUI/android
+          # Copy our app name and manifest changes
+          cat > frontend/GuardPayUI/android/app/src/main/res/values/strings.xml << 'EOF'
+          <resources>
+              <string name="app_name">GuardPay AI</string>
+          </resources>
+          EOF
+          echo "android/ folder replaced"
+          ls frontend/GuardPayUI/android/
+
+      # ── 7. Update app manifest to rename package and add permissions ──────────
+      - name: Patch AndroidManifest with GuardPay permissions
+        run: |
+          # Replace the app name in manifest
+          sed -i 's/android:label="[^"]*"/android:label="GuardPay AI"/g' \
+            frontend/GuardPayUI/android/app/src/main/AndroidManifest.xml
+          # Add RECORD_AUDIO and CALL_PHONE permissions if not present
+          if ! grep -q "RECORD_AUDIO" frontend/GuardPayUI/android/app/src/main/AndroidManifest.xml; then
+            sed -i 's|<uses-permission android:name="android.permission.INTERNET" />|<uses-permission android:name="android.permission.INTERNET" />\n    <uses-permission android:name="android.permission.RECORD_AUDIO" />\n    <uses-permission android:name="android.permission.CALL_PHONE" />|' \
+              frontend/GuardPayUI/android/app/src/main/AndroidManifest.xml
+          fi
+          echo "Manifest patched"
+          cat frontend/GuardPayUI/android/app/src/main/AndroidManifest.xml
+
+      # ── 8. Install npm dependencies ──────────────────────────────────────────
+      - name: Install npm dependencies
+        working-directory: frontend/GuardPayUI
+        run: npm install
+
+      # ── 9. Set gradlew executable ────────────────────────────────────────────
+      - name: Set gradlew permissions
+        working-directory: frontend/GuardPayUI/android
+        run: chmod +x ./gradlew
+
+      # ── 10. Create local.properties for SDK path ─────────────────────────────
+      - name: Create local.properties
+        working-directory: frontend/GuardPayUI/android
+        run: echo "sdk.dir=$ANDROID_HOME" > local.properties
+
+      # ── 11. Build Debug APK ───────────────────────────────────────────────────
+      - name: Build Debug APK
+        working-directory: frontend/GuardPayUI/android
+        run: |
+          ./gradlew assembleDebug \
+            --no-daemon \
+            --warning-mode all \
+            -Dorg.gradle.jvmargs="-Xmx4096m -XX:MaxMetaspaceSize=1024m"
+
+      # ── 12. Collect and rename APK ────────────────────────────────────────────
+      - name: Collect APK
+        run: |
+          mkdir -p apk-output
+          find frontend/GuardPayUI/android -name "*.apk" | head -5
+          cp frontend/GuardPayUI/android/app/build/outputs/apk/debug/app-debug.apk \
+             apk-output/GuardPay-AI-v1.0-debug.apk
+          echo "APK size: $(du -sh apk-output/GuardPay-AI-v1.0-debug.apk)"
+
+      # ── 13. Upload as artifact ────────────────────────────────────────────────
+      - name: Upload APK as artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: GuardPay-AI-APK
+          path: apk-output/GuardPay-AI-v1.0-debug.apk
+          retention-days: 30
+
+      # ── 14. Create GitHub Release ─────────────────────────────────────────────
+      - name: Create GitHub Release with APK
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: apk-latest
+          name: "GuardPay AI — Android APK"
+          body: |
+            ## 📱 GuardPay AI — Install on Android Phone
+            
+            **Built from:** `${{ github.ref_name }}` @ `${{ github.sha }}`
+            
+            ---
+            
+            ### 📥 Installation Steps (No Android Studio needed!)
+            
+            1. **Download** `GuardPay-AI-v1.0-debug.apk` from Assets below
+            2. **Transfer to phone:** USB cable drag-and-drop, OR WhatsApp to yourself, OR Google Drive
+            3. **On your phone:**
+               - Go to **Settings → Security** (or Privacy)
+               - Enable **"Install from unknown sources"** / "Install unknown apps"
+            4. **Tap the APK file** on your phone → tap **Install**
+            5. **Open GuardPay AI** ✅
+            
+            ---
+            
+            ### ⚙️ Backend Connection
+            
+            Start the backend on your PC:
+            ```bash
+            cd GuardPay_AI
+            python run.py
+            ```
+            Make sure your phone and PC are on the **same WiFi**.
+            In the app, backend URL should be `http://<your-pc-ip>:8000`
+          files: apk-output/GuardPay-AI-v1.0-debug.apk
+          draft: false
+          prerelease: false
+          make_latest: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
