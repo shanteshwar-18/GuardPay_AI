@@ -182,17 +182,24 @@ async def _evaluate_all_modules(req: RiskScoreRequest) -> dict[str, float]:
 # Main endpoint
 # ─────────────────────────────────────────────────────────────────────────────
 
-@router.post(
-    "/risk-score",
-    response_model=RiskScoreResponse,
-    summary="Evaluate transaction risk score",
-    description=(
-        "Multi-modal fraud risk evaluation via asyncio.gather(). "
-        "6 independent modules run concurrently → weighted risk fusion → SHAP top-3. "
-        "Target latency: < 3 seconds."
-    ),
-)
-async def evaluate_risk(req: RiskScoreRequest) -> RiskScoreResponse:
+async def evaluate_risk_core(
+    req: RiskScoreRequest,
+    *,
+    forced_factors: dict[str, float] | None = None,
+) -> tuple[RiskScoreResponse, dict[str, float]]:
+    """
+    THE evaluation engine (spec §42 — there is exactly one).
+
+    POST /api/v1/risk-score is a thin wrapper over this, and the payment
+    authorization gate calls it directly rather than scoring anything itself.
+    Returns the public response plus the raw 0–1 factor vector, which the gate
+    needs to build the normalized §36 factor list.
+
+    `forced_factors` is the ONLY way a caller can bypass the six AI modules. It
+    exists solely for the demo-mode branch in backend/routers/payment.py, which
+    passes it only after checking settings.GUARDPAY_DEMO_MODE. It defaults to
+    None, so no real-scoring path can ever see a demo vector.
+    """
     start = time.perf_counter()
     logger.info(
         f"[RISK] txn={req.transaction_id} "
@@ -201,8 +208,13 @@ async def evaluate_risk(req: RiskScoreRequest) -> RiskScoreResponse:
     )
 
     try:
-        # ── PROMPT 7: concurrent AI module calls ─────────────────────────────
-        factor_scores = await _evaluate_all_modules(req)
+        if forced_factors is not None:
+            # Demo branch — deterministic vector, AI modules skipped entirely.
+            factor_scores = dict(forced_factors)
+            logger.info(f"[RISK] DEMO vector used for txn={req.transaction_id}: {factor_scores}")
+        else:
+            # ── PROMPT 7: concurrent AI module calls ─────────────────────────
+            factor_scores = await _evaluate_all_modules(req)
 
         # ── Risk fusion (weighted formula → 0–100) ───────────────────────────
         risk_score, explanation = compute_risk(factor_scores)
@@ -222,14 +234,18 @@ async def evaluate_risk(req: RiskScoreRequest) -> RiskScoreResponse:
     if risk_score >= settings.RISK_THRESHOLD_ELEVATED:
         try:
             from backend.services.evidence_builder import build_evidence_bundle
+            # The real captured signals go into the bundle. Passing "" here made
+            # every bundle evidentially worthless — the OCR text and transcript
+            # ARE the evidence a bank or the police would act on.
             evidence_bundle_id = await build_evidence_bundle(
                 txn_id=req.transaction_id,
                 upi_id=req.receiver_upi_id,
                 amount=req.amount,
-                ocr_text="",
-                transcript="",
+                ocr_text=req.ocr_text or "",
+                transcript=req.transcript or "",
                 audio_base64=req.audio_base64,
                 shap_breakdown=explanation,
+                risk_score=risk_score,
             )
         except ImportError:
             evidence_bundle_id = f"EVD-{req.transaction_id[:8]}-PENDING"
@@ -290,7 +306,7 @@ async def evaluate_risk(req: RiskScoreRequest) -> RiskScoreResponse:
         f"latency={elapsed_ms:.1f}ms"
     )
 
-    return RiskScoreResponse(
+    response = RiskScoreResponse(
         transaction_id=req.transaction_id,
         risk_score=round(risk_score, 2),
         tier=tier,
@@ -300,3 +316,20 @@ async def evaluate_risk(req: RiskScoreRequest) -> RiskScoreResponse:
         ivr_call_initiated=ivr_initiated,
         processing_time_ms=round(elapsed_ms, 2),
     )
+    return response, factor_scores
+
+
+@router.post(
+    "/risk-score",
+    response_model=RiskScoreResponse,
+    summary="Evaluate transaction risk score",
+    description=(
+        "Multi-modal fraud risk evaluation via asyncio.gather(). "
+        "6 independent modules run concurrently → weighted risk fusion → SHAP top-3. "
+        "Target latency: < 3 seconds."
+    ),
+)
+async def evaluate_risk(req: RiskScoreRequest) -> RiskScoreResponse:
+    """Public evaluation endpoint — unchanged contract, thin wrapper over the core."""
+    response, _factor_scores = await evaluate_risk_core(req)
+    return response

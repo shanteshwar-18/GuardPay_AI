@@ -11,6 +11,8 @@ from collections import defaultdict
 
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect
 
+from backend.services import live_scoring
+
 logger = logging.getLogger(__name__)
 router = APIRouter()
 
@@ -19,7 +21,7 @@ _audio_queues: dict[str, asyncio.Queue] = defaultdict(asyncio.Queue)
 
 # 3-second window at 16kHz, 16-bit mono = 16000 * 2 * 3 = 96000 bytes
 WINDOW_BYTES = 96_000
-SILENCE_TIMEOUT = 10  # seconds — close idle connection
+SILENCE_TIMEOUT = 30  # seconds of silence → disconnect (playbook Step 1.3)
 
 
 def get_audio_queue(session_id: str) -> asyncio.Queue:
@@ -41,6 +43,7 @@ async def audio_stream(websocket: WebSocket):
     await websocket.accept()
     session_id: str | None = None
     buffer: bytes = b""
+    worker_started = False
 
     try:
         while True:
@@ -62,6 +65,12 @@ async def audio_stream(websocket: WebSocket):
 
             buffer += pcm_bytes
 
+            # Spin up the scoring worker as soon as we know which session this is,
+            # otherwise the windows below would queue up with nobody consuming them.
+            if session_id and not worker_started:
+                await live_scoring.ensure_worker(session_id, _audio_queues[session_id])
+                worker_started = True
+
             # Push complete 3-second windows to queue
             while len(buffer) >= WINDOW_BYTES:
                 window, buffer = buffer[:WINDOW_BYTES], buffer[WINDOW_BYTES:]
@@ -69,16 +78,23 @@ async def audio_stream(websocket: WebSocket):
                     await _audio_queues[session_id].put(window)
                     logger.debug(f"[WS] Pushed 3s window for session {session_id} — queue depth {_audio_queues[session_id].qsize()}")
 
+            live = live_scoring.get_session(session_id) if session_id else None
             await websocket.send_text(json.dumps({
                 "status": "received",
                 "session_id": session_id,
                 "buffer_bytes": len(buffer),
+                # Echo the live score back on the same socket so a client that does
+                # not open the SSE stream still sees the risk update.
+                "risk_score": round(live.score, 2) if live else 0.0,
+                "tier": live.tier if live else "SAFE",
+                "windows_processed": live.windows_processed if live else 0,
             }))
 
     except WebSocketDisconnect:
         logger.info(f"[WS] Client disconnected — session {session_id}")
     finally:
-        # Clean up queue when session ends
-        if session_id and session_id in _audio_queues:
-            del _audio_queues[session_id]
+        if session_id:
+            await live_scoring.stop_worker(session_id)
+            if session_id in _audio_queues:
+                del _audio_queues[session_id]
             logger.info(f"[WS] Queue cleaned for session {session_id}")

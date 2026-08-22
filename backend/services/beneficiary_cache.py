@@ -21,6 +21,7 @@ except ImportError:
 # The Bloom filter / fallback set
 _bloom: object = None
 _known_pairs_fallback: set[str] = set()
+_loaded_count: int = 0
 
 # Path to mock known-beneficiary seed data
 MOCK_SEED_PATH = Path(__file__).parent.parent.parent / "data" / "mock" / "known_beneficiaries.json"
@@ -55,13 +56,23 @@ async def init_bloom_filter():
     # Populate filter
     for pair in pairs:
         key = f"{pair['sender']}|{pair['receiver']}"
-        if _HAS_BLOOM and _bloom:
+        if _HAS_BLOOM and _bloom is not None:
             _bloom.add(key)
         else:
             _known_pairs_fallback.add(key)
 
     size = len(pairs)
+    global _loaded_count
+    _loaded_count = size
     logger.info(f"✅ Bloom filter loaded with {size} known (sender, receiver) pairs.")
+
+
+def get_status() -> str:
+    """Real filter state, for /health — distinguishes pybloom from the set fallback."""
+    if _loaded_count == 0:
+        return "not loaded"
+    kind = "bloom" if (_HAS_BLOOM and _bloom is not None) else "set-fallback"
+    return f"loaded ({kind}, {_loaded_count} pairs)"
 
 
 def _generate_synthetic_pairs(n: int) -> list[dict]:
@@ -82,7 +93,7 @@ def is_new_beneficiary(sender_upi_id: str, receiver_upi_id: str) -> bool:
     False negatives are IMPOSSIBLE — if it says new, it is definitely new.
     """
     key = f"{sender_upi_id}|{receiver_upi_id}"
-    if _HAS_BLOOM and _bloom:
+    if _HAS_BLOOM and _bloom is not None:
         return key not in _bloom  # not in bloom = definitely new
     return key not in _known_pairs_fallback
 
@@ -93,7 +104,7 @@ def mark_known(sender_upi_id: str, receiver_upi_id: str):
     Note: Bloom filters are append-only — cannot remove entries.
     """
     key = f"{sender_upi_id}|{receiver_upi_id}"
-    if _HAS_BLOOM and _bloom:
+    if _HAS_BLOOM and _bloom is not None:
         _bloom.add(key)
     else:
         _known_pairs_fallback.add(key)

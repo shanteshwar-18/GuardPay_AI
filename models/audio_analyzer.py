@@ -26,27 +26,53 @@ import torch
 _MODEL_PATH = Path(__file__).parent / "voice_cnn.pt"
 _model: "VoiceCloneCNN | None" = None   # cached singleton
 _device: torch.device = torch.device("cpu")
+_threshold: float = 0.5                 # overwritten from the checkpoint metadata
+_status: str = "not loaded"
 
 
 def _get_model():
     """Load the CNN once; cache as module-level singleton."""
-    global _model, _device
+    global _model, _device, _threshold, _status
+
     if _model is not None:
         return _model
 
     # Import here to avoid circular imports at package level
     import sys
     sys.path.insert(0, str(Path(__file__).parent.parent))
+    from models.audio_features import FEATURE_VERSION
     from models.train_cnn import VoiceCloneCNN
 
     _device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     model = VoiceCloneCNN().to(_device)
 
     if _MODEL_PATH.exists():
-        state = torch.load(_MODEL_PATH, map_location=_device, weights_only=True)
-        model.load_state_dict(state)
-        print(f"[audio_analyzer] Loaded model weights from {_MODEL_PATH}")
+        ckpt = torch.load(_MODEL_PATH, map_location=_device, weights_only=False)
+
+        # train_cnn.py saves a metadata dict; older runs saved a bare state_dict.
+        if isinstance(ckpt, dict) and "state_dict" in ckpt:
+            model.load_state_dict(ckpt["state_dict"])
+            _threshold = float(ckpt.get("threshold", 0.5))
+            trained_on = ckpt.get("trained_on", "unknown")
+            ckpt_fv = ckpt.get("feature_version")
+            if ckpt_fv is not None and ckpt_fv != FEATURE_VERSION:
+                # Serving features the model never saw is silent accuracy loss,
+                # so surface it loudly rather than returning confident nonsense.
+                _status = (f"STALE: checkpoint feature_version={ckpt_fv} != "
+                           f"runtime {FEATURE_VERSION} — retrain models/train_cnn.py")
+                print(f"[audio_analyzer] WARNING — {_status}")
+            else:
+                ev = (ckpt.get("metrics") or {}).get("eval") or {}
+                acc = f", eval bal_acc={ev['balanced_accuracy']*100:.1f}%" if ev else ""
+                _status = f"loaded ({trained_on}, thr={_threshold:.3f}{acc})"
+                print(f"[audio_analyzer] Loaded model from {_MODEL_PATH} — {_status}")
+        else:
+            model.load_state_dict(ckpt)
+            _threshold = 0.5
+            _status = "loaded (legacy checkpoint, no metadata)"
+            print(f"[audio_analyzer] Loaded legacy weights from {_MODEL_PATH}")
     else:
+        _status = "NOT TRAINED (random weights)"
         print(
             f"[audio_analyzer] WARNING: {_MODEL_PATH} not found — "
             "using randomly initialised model. Run models/train_cnn.py first."
@@ -55,6 +81,23 @@ def _get_model():
     model.eval()
     _model = model
     return _model
+
+
+def get_model_status() -> str:
+    """Human-readable model state for /health."""
+    if _model is None:
+        try:
+            _get_model()
+        except Exception as exc:
+            return f"error ({exc.__class__.__name__})"
+    return _status
+
+
+def get_threshold() -> float:
+    """Operating threshold chosen on the dev split at training time."""
+    if _model is None:
+        _get_model()
+    return _threshold
 
 
 def _infer(pcm_bytes: bytes) -> float:

@@ -8,13 +8,17 @@
 
 import React, { useEffect, useRef, useState } from 'react';
 import { View, Text, StyleSheet, Animated } from 'react-native';
+import { useTranslation } from 'react-i18next';
 import { formatCallDuration } from '../services/format';
+import { useScaledFont } from '../context/SeniorModeContext';
 
 type Props = {
   isCallActive?: boolean;
 };
 
 export function SimulatedCallBanner({ isCallActive = true }: Props) {
+  const { t } = useTranslation();
+  const sf = useScaledFont();
   const [elapsed, setElapsed] = useState(0);
   const pulseAnim = useRef(new Animated.Value(1)).current;
 
@@ -41,11 +45,18 @@ export function SimulatedCallBanner({ isCallActive = true }: Props) {
   if (!isCallActive) return null;
 
   return (
-    <View style={styles.banner}>
+    <View
+      style={styles.banner}
+      testID="call-banner"
+      accessible={true}
+      accessibilityRole="alert"
+      accessibilityLiveRegion="polite"
+      accessibilityLabel={`${t('call.banner')} — ${formatCallDuration(elapsed)}`}
+    >
       <Animated.View style={[styles.redDot, { opacity: pulseAnim }]} />
       <Text style={styles.phoneIcon}>📞</Text>
-      <Text style={styles.label}>Active Call: Unknown Caller</Text>
-      <Text style={styles.timer}>{formatCallDuration(elapsed)}</Text>
+      <Text style={[styles.label, { fontSize: sf(12) }]}>{t('call.banner')}</Text>
+      <Text style={[styles.timer, { fontSize: sf(12) }]}>{formatCallDuration(elapsed)}</Text>
     </View>
   );
 }

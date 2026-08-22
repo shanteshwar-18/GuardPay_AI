@@ -64,8 +64,14 @@ async def send_alert(
     """
     Sends fraud alert to bank/PSP endpoint with mTLS and exponential-backoff retry.
 
-    Retry schedule: attempt 1 → wait 1s → attempt 2 → wait 2s → attempt 3 → wait 4s
-    Returns True if alert delivered, False if all retries exhausted.
+    Backoff is 2**(attempt-1) seconds and only ever happens BETWEEN attempts, so
+    with the default max_retries=3 the schedule is:
+        attempt 1 → wait 1s → attempt 2 → wait 2s → attempt 3 → (no wait, give up)
+    The playbook lists the delays as "1s, 2s, 4s"; the 4s delay only occurs at
+    max_retries=4, since waiting after the final attempt would just add latency
+    before returning failure. Raise max_retries to 4 if that delay is wanted.
+
+    Returns True if alert delivered, False if all attempts are exhausted.
     """
     payload = _build_alert_payload(
         transaction_id, risk_score, contributing_factors,
@@ -91,7 +97,10 @@ async def send_alert(
                     timeout=5.0,
                 )
             else:
-                client = httpx.AsyncClient(timeout=5.0, verify=False)
+                # verify stays True: disabling TLS verification to make a demo work
+                # would silently accept any certificate if BANK_ALERT_ENDPOINT were
+                # ever pointed at a real https PSP. Plain-http demo endpoints ignore it.
+                client = httpx.AsyncClient(timeout=5.0)
 
             async with client:
                 response = await client.post(

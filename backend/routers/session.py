@@ -10,6 +10,11 @@ router = APIRouter()
 _sessions: dict[str, dict] = {}
 
 
+def get_session_record(txn_id: str) -> dict | None:
+    """Raw session dict (risk_score, tier, ivr_outcome...) or None if unknown."""
+    return _sessions.get(txn_id)
+
+
 def update_session(txn_id: str, **kwargs):
     """Called by other services (Twilio callback, risk router) to update session state."""
     if txn_id not in _sessions:
@@ -46,22 +51,45 @@ async def get_session_status(txn_id: str) -> SessionStatusResponse:
 
 @router.get(
     "/session/{txn_id}/score-stream",
-    summary="SSE score stream (Phase 7 — Jatin's pipeline wires this)",
+    summary="SSE stream of live risk-score updates while audio is streaming",
 )
 async def score_stream(txn_id: str):
     """
-    Server-Sent Events endpoint for real-time risk score updates.
-    TODO Phase 7: Jatin's pipeline_orchestrator.py pushes updates here
-    via asyncio.Queue → SSE stream.
+    Server-Sent Events stream of the live risk score (playbook Step 7.1).
+
+    Events are pushed by the live_scoring worker as each 3-second audio window is
+    analysed, rather than polled on a fixed loop — so the stream is silent when
+    nothing changes and immediate when it does. A keep-alive comment goes out every
+    15 s so idle proxies do not drop the connection, and the stream ends once the
+    worker reports `final`.
     """
+    import asyncio
+    import json
+
     from fastapi.responses import StreamingResponse
-    import asyncio, json
+
+    from backend.services import live_scoring
+
+    KEEPALIVE_SEC = 15.0
 
     async def event_generator():
-        # Placeholder: emit current session score every 3 seconds
-        for _ in range(10):
-            session = _sessions.get(txn_id, {})
-            yield f"data: {json.dumps({'txn_id': txn_id, 'risk_score': session.get('risk_score', 0)})}\n\n"
-            await asyncio.sleep(3)
+        with live_scoring.subscription(txn_id) as (sess, queue):
+            # Emit current state immediately so a late subscriber is not left blank.
+            yield f"data: {json.dumps(sess.snapshot())}\n\n"
+            while True:
+                try:
+                    payload = await asyncio.wait_for(queue.get(), timeout=KEEPALIVE_SEC)
+                except asyncio.TimeoutError:
+                    yield ": keep-alive\n\n"
+                    continue
+                except asyncio.CancelledError:      # client disconnected
+                    break
+                yield f"data: {json.dumps(payload)}\n\n"
+                if payload.get("final"):
+                    break
 
-    return StreamingResponse(event_generator(), media_type="text/event-stream")
+    return StreamingResponse(
+        event_generator(),
+        media_type="text/event-stream",
+        headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
+    )

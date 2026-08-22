@@ -15,6 +15,9 @@ from backend.core.config import settings
 logger = logging.getLogger(__name__)
 router = APIRouter()
 
+# Score at or above which the engine surfaces friction to the user (WARNING tier).
+WARNING_THRESHOLD = 40.0
+
 # In-memory store (fallback when Supabase is unavailable)
 _feedback_store: list[dict] = []
 _supabase_client = None
@@ -46,10 +49,21 @@ async def capture_feedback(req: FeedbackRequest) -> FeedbackResponse:
     Stored in Supabase feedback table (in-memory fallback if unavailable).
     Batch recalibration: python scripts/recalibrate_thresholds.py (Jatin owns this)
     """
+    # Capture what the engine predicted for this transaction at report time.
+    # Without it, precision/recall are uncomputable later — you cannot tell a true
+    # positive from a false negative knowing only the ground-truth outcome.
+    predicted_score = None
+    try:
+        from backend.routers.session import get_session_record
+        predicted_score = (get_session_record(req.transaction_id) or {}).get("risk_score")
+    except Exception as exc:
+        logger.warning(f"[Feedback] could not resolve predicted score: {exc}")
+
     record = {
         "transaction_id": req.transaction_id,
         "was_scam": req.was_scam,
         "reported_by": req.reported_by or "anonymous",
+        "predicted_score": predicted_score,
         "timestamp": datetime.now(timezone.utc).isoformat(),
     }
 
@@ -92,17 +106,42 @@ async def get_stats() -> StatsResponse:
 
     total = len(records)
     scam_reports = sum(1 for f in records if f.get("was_scam", False))
-    false_positives = total - scam_reports
 
-    precision = round(scam_reports / total, 4) if total > 0 else 0.0
-    recall = 1.0  # conservative — assume we catch all scams (real value needs ground truth negatives)
-    fp_rate = round(false_positives / total, 4) if total > 0 else 0.0
+    # Real confusion matrix: "flagged" means the engine scored the transaction at or
+    # above the WARNING threshold. Records with no stored score cannot be classified
+    # as TP/FP/FN/TN, so they are reported separately instead of being silently
+    # folded into the numerator (which is how recall previously came out as 1.0).
+    tp = fp = fn = tn = unscored = 0
+    for f in records:
+        score = f.get("predicted_score")
+        was_scam = bool(f.get("was_scam", False))
+        if score is None:
+            unscored += 1
+            continue
+        flagged = float(score) >= WARNING_THRESHOLD
+        if flagged and was_scam:
+            tp += 1
+        elif flagged and not was_scam:
+            fp += 1
+        elif not flagged and was_scam:
+            fn += 1
+        else:
+            tn += 1
+
+    precision = round(tp / (tp + fp), 4) if (tp + fp) > 0 else 0.0
+    recall = round(tp / (tp + fn), 4) if (tp + fn) > 0 else 0.0
+    flagged_total = tp + fp
+    fp_rate = round(fp / flagged_total, 4) if flagged_total > 0 else 0.0
 
     return StatsResponse(
         total_feedback=total,
         scam_reports=scam_reports,
-        false_positives=false_positives,
+        false_positives=fp,
         false_positive_rate=fp_rate,
         precision=precision,
         recall=recall,
+        true_positives=tp,
+        false_negatives=fn,
+        true_negatives=tn,
+        unscored=unscored,
     )

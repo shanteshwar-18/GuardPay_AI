@@ -1,281 +1,465 @@
 /**
- * GuardPay AI — RiskEvalScreen (REAL AI Integration)
+ * GuardPay AI — RiskEvalScreen (§11 protected security session)
  *
- * Calls POST /api/v1/risk-score with UPI details + audio buffer,
- * then routes to the correct outcome screen based on risk tier.
+ * The single entry point into a protected payment. On mount it:
+ *   1. creates the backend session               (api.createSession)
+ *   2. opens the audio stream, best-effort       (audioStream.startAudioStream)
+ *   3. runs the risk evaluation                  (api.evaluateSession)
+ *   4. stops the stream and REPLACES itself with the data-driven decision screen
  *
- * Tier routing:
- *   ALLOWED         → PinScreen
- *   WARNING         → WarningScreen
- *   ADAPTIVE_HOLD   → HoldScreen
- *   HARD_INTERCEPT  → InterceptScreen
- *
- * Audio: startAudioStream() runs in parallel — WS chunks are sent while
- * the REST call is in-flight. stopAudioStream() is called on any outcome.
- *
- * Commit: feat(integration): wire RiskEvalScreen to real POST /api/v1/risk-score
- * Author: Jatin (AI/ML wiring)
+ * FAIL CLOSED (§41): if the evaluation errors, aborts or times out we must never
+ * fall through to the PIN pad. The only forward route from the failure state is
+ * RiskDecision at WARNING tier, which itself requires a verification step before
+ * PIN becomes reachable (config/riskTiers.ts). There is deliberately no code path
+ * from this screen to 'Pin'.
  */
 
-import React, { useEffect, useRef, useCallback } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
+import { Animated, Easing, StyleSheet, Text, View } from 'react-native';
+import type { NativeStackScreenProps } from '@react-navigation/native-stack';
+import { useTranslation } from 'react-i18next';
+
 import {
-  View,
-  Text,
-  StyleSheet,
-  Animated,
-  Easing,
-  SafeAreaView,
-  StatusBar,
-} from 'react-native';
-import { NativeStackScreenProps } from '@react-navigation/native-stack';
-import { RootStackParamList, RiskTier, RiskFactor } from '../types/navigation';
-import { formatINRCompact } from '../services/format';
-import {
-  NAVY, NAVY_LIGHT, NEUTRAL_GRAY, NEUTRAL_LIGHT, WHITE, ALLOWED_GREEN,
-} from '../theme/colors';
-import { API_BASE_URL, API_TIMEOUT_MS } from '../services/config';
+  Card,
+  PrimaryButton,
+  ProtectionSessionIndicator,
+  ScreenContainer,
+  SecondaryButton,
+  SecurityAlert,
+  ShieldGlyph,
+  useFontScale,
+} from '../components/guardpay';
+import { theme } from '../theme';
+import { RISK_THRESHOLDS, resolveTier } from '../config/riskTiers';
+import type { RiskTierId } from '../config/riskTiers';
+import { cancelSession, createSession, evaluateSession } from '../services/api';
+import type { RiskFactorDto } from '../services/api';
 import { startAudioStream, stopAudioStream } from '../services/audioStream';
+import { formatINRCompact } from '../services/format';
+import type { RootStackParamList } from '../types/navigation';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'RiskEval'>;
 
-// ─── Helpers ──────────────────────────────────────────────────────────────────
+/** How long the failure notice stays on screen before the forced WARNING route. */
+const FAIL_CLOSED_HOLD_MS = 3500;
 
-/** Generate a UUID-like session ID (no external dep required). */
-function generateSessionId(): string {
-  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, c => {
-    const r = Math.random() * 16 | 0;
-    return (c === 'x' ? r : (r & 0x3 | 0x8)).toString(16);
-  });
-}
+/** Progress bar fill duration — cosmetic; the screen unmounts when the tier lands. */
+const PROGRESS_MS = 18000;
 
-/** Map backend tier string to our RiskTier type (defensive normalise). */
-function normaliseTier(raw: string): RiskTier {
-  const upper = (raw ?? '').toUpperCase();
-  const map: Record<string, RiskTier> = {
-    ALLOWED:        'ALLOWED',
-    WARNING:        'WARNING',
-    ELEVATED:       'WARNING',          // backend uses ELEVATED, frontend uses WARNING
-    ADAPTIVE_HOLD:  'ADAPTIVE_HOLD',
-    HARD_INTERCEPT: 'HARD_INTERCEPT',
-  };
-  return map[upper] ?? 'WARNING';
-}
-
-/** Map backend explanation[] into our RiskFactor[] shape. */
-function normaliseExplanation(raw: unknown): RiskFactor[] {
-  if (!Array.isArray(raw)) return [];
-  return raw.map((item: any) => ({
-    factor: item.factor ?? item.reason ?? 'Unknown',
-    points: typeof item.points === 'number' ? item.points : 0,
-  }));
-}
-
-// ─── Component ────────────────────────────────────────────────────────────────
+type Phase = 'evaluating' | 'failed';
 
 export function RiskEvalScreen({ route, navigation }: Props) {
-  const { beneficiary, amount, note } = route.params;
-  const rotateAnim = useRef(new Animated.Value(0)).current;
-  const fadeAnim   = useRef(new Animated.Value(0)).current;
+  const { beneficiary, amount, note, transactionId, demoScenario } = route.params;
+  const { t } = useTranslation();
+  const tr = useCallback((key: string, opts?: Record<string, unknown>): string =>
+    String(t(key, opts ?? {})), [t]);
+  const { sf } = useFontScale();
 
-  // Animations
+  const [phase, setPhase] = useState<Phase>('evaluating');
+  const [attempt, setAttempt] = useState(0);
+
+  /** Session id from the backend; kept in a ref so cleanup can cancel it. */
+  const sessionIdRef = useRef<string>(route.params.sessionId ?? '');
+  const aliveRef = useRef(true);
+  const failTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const progress = useRef(new Animated.Value(0)).current;
+  const fade = useRef(new Animated.Value(0)).current;
+
+  // ── Fail-closed routing ────────────────────────────────────────────────────
+  /**
+   * The ONLY forward transition available when risk could not be computed.
+   * WARNING carries requiresVerification=true and pinAllowed=false, so the user
+   * still has to clear a verification step — the payment is never silently let
+   * through.
+   */
+  const goToDecisionUnavailable = useCallback(() => {
+    if (!aliveRef.current) return;
+    navigation.replace('RiskDecision', {
+      sessionId: sessionIdRef.current,
+      transactionId,
+      beneficiary,
+      amount,
+      note,
+      tier: 'WARNING' as RiskTierId,
+      riskScore: RISK_THRESHOLDS.warning,
+      factors: [] as RiskFactorDto[],
+      requiredAction: 'VERIFY_CODE',
+      evidenceBundleId: null,
+    });
+  }, [navigation, transactionId, beneficiary, amount, note]);
+
+  // ── Entrance + progress animations (stopped on unmount, §47) ───────────────
   useEffect(() => {
-    Animated.loop(
-      Animated.timing(rotateAnim, {
-        toValue: 1,
-        duration: 900,
-        easing: Easing.linear,
-        useNativeDriver: true,
-      })
-    ).start();
-
-    Animated.timing(fadeAnim, {
+    const entrance = Animated.timing(fade, {
       toValue: 1,
-      duration: 400,
+      duration: 350,
+      easing: Easing.out(Easing.quad),
       useNativeDriver: true,
-    }).start();
-  }, [rotateAnim, fadeAnim]);
+    });
+    entrance.start();
+    return () => entrance.stop();
+  }, [fade]);
 
-  const spin = rotateAnim.interpolate({
-    inputRange:  [0, 1],
-    outputRange: ['0deg', '360deg'],
+  useEffect(() => {
+    if (phase !== 'evaluating') return undefined;
+    progress.setValue(0);
+    // Width is a layout property — the native driver cannot animate it.
+    const fill = Animated.timing(progress, {
+      toValue: 0.92,
+      duration: PROGRESS_MS,
+      easing: Easing.out(Easing.quad),
+      useNativeDriver: false,
+    });
+    fill.start();
+    return () => fill.stop();
+  }, [phase, progress, attempt]);
+
+  const progressWidth = progress.interpolate({
+    inputRange: [0, 1],
+    outputRange: ['0%', '100%'],
   });
 
-  // ─── Real AI API call ──────────────────────────────────────────────────────
-  const routeByTier = useCallback(
-    (tier: RiskTier, riskScore: number, explanation: RiskFactor[], transactionId?: string) => {
-      const common = { beneficiary, amount, riskScore, tier, explanation, transactionId };
-      switch (tier) {
-        case 'ALLOWED':
-          navigation.navigate('Pin', { ...common });
-          break;
-        case 'WARNING':
-          navigation.navigate('Warning', { ...common });
-          break;
-        case 'ADAPTIVE_HOLD':
-          navigation.navigate('Hold', { ...common });
-          break;
-        case 'HARD_INTERCEPT':
-          navigation.navigate('Intercept', { ...common });
-          break;
-        default:
-          // Defensive: unknown tier → treat as warning
-          navigation.navigate('Warning', { ...common, tier: 'WARNING' });
-      }
-    },
-    [navigation, beneficiary, amount]
-  );
-
+  // ── The security session itself ────────────────────────────────────────────
   useEffect(() => {
-    const sessionId = generateSessionId();
-    let cancelled = false;
+    aliveRef.current = true;
+    let audioStarted = false;
 
     const run = async () => {
-      // ── 1. Start audio streaming in parallel (non-blocking) ──────────────
+      // 1. Create the protected session.
+      let sessionId = '';
       try {
-        await startAudioStream(sessionId);
-      } catch (e) {
-        console.warn('[RiskEval] Audio stream failed to start (non-fatal):', e);
+        const session = await createSession({
+          receiver_upi_id: beneficiary.upiId,
+          amount,
+          note,
+        });
+        sessionId = session.session_id;
+        sessionIdRef.current = sessionId;
+      } catch (err) {
+        console.warn('[RiskEval] createSession failed — failing closed:', err);
+        if (aliveRef.current) setPhase('failed');
+        return;
       }
 
-      // ── 2. Call the risk score REST endpoint ─────────────────────────────
+      if (!aliveRef.current) return;
+
+      // 2. Audio streaming is a best-effort signal. It must never block, delay or
+      //    fail the security check, so it is fired without awaiting the result.
       try {
-        const controller = new AbortController();
-        const timeoutId  = setTimeout(() => controller.abort(), API_TIMEOUT_MS);
-
-        const response = await fetch(
-          `${API_BASE_URL}/api/v1/risk-score`,
-          {
-            method:  'POST',
-            headers: { 'Content-Type': 'application/json' },
-            signal:  controller.signal,
-            body: JSON.stringify({
-              upi_id:            beneficiary.upiId,
-              amount,
-              is_new_beneficiary: beneficiary.isNewBeneficiary,
-              session_id:         sessionId,
-              note:               note ?? null,
-              // audio_buffer_b64 intentionally null — chunks arrive via WS
-              audio_buffer_b64:   null,
-              ocr_text:           null,
-              device_signals:     {},
-            }),
-          }
+        audioStarted = true;
+        void startAudioStream(sessionId).catch(e =>
+          console.warn('[RiskEval] audio stream unavailable (non-fatal):', e),
         );
+      } catch (e) {
+        audioStarted = false;
+        console.warn('[RiskEval] audio stream failed to start (non-fatal):', e);
+      }
 
-        clearTimeout(timeoutId);
-        if (cancelled) return;
+      // 3. Evaluate. api.ts owns the timeout and aborts rather than hanging.
+      try {
+        const evaluation = await evaluateSession(sessionId, demoScenario);
 
-        if (!response.ok) {
-          throw new Error(`HTTP ${response.status}`);
+        try {
+          stopAudioStream();
+        } catch {
+          /* stopping a stream that never started is a no-op */
         }
+        audioStarted = false;
 
-        const data = await response.json();
-        stopAudioStream();
+        if (!aliveRef.current) return;
 
-        if (cancelled) return;
+        const score =
+          typeof evaluation.riskScore === 'number' && Number.isFinite(evaluation.riskScore)
+            ? Math.round(evaluation.riskScore)
+            : RISK_THRESHOLDS.warning;
 
-        const tier        = normaliseTier(data.tier ?? data.risk_tier ?? 'WARNING');
-        const riskScore   = typeof data.risk_score === 'number' ? Math.round(data.risk_score) : 50;
-        const explanation = normaliseExplanation(data.explanation ?? data.shap_top3 ?? []);
-        const txnId       = data.transaction_id ?? data.txn_id ?? sessionId;
+        // The backend decides; resolveTier only maps its vocabulary onto ours and
+        // escalates (never de-escalates) an unrecognised value.
+        const tier = resolveTier(evaluation.riskTier, score);
 
-        routeByTier(tier, riskScore, explanation, txnId);
-
-      } catch (err: any) {
-        stopAudioStream();
-        if (cancelled) return;
-
-        // ── 3. Fallback: backend unreachable → safe warning ────────────────
-        console.warn('[RiskEval] API call failed — showing fallback warning:', err?.message);
-        routeByTier('WARNING', 50, [{ factor: 'AI evaluation temporarily unavailable', points: 0 }]);
+        navigation.replace('RiskDecision', {
+          sessionId,
+          transactionId: evaluation.transactionId ?? transactionId,
+          beneficiary,
+          amount,
+          note,
+          tier,
+          riskScore: score,
+          factors: Array.isArray(evaluation.factors) ? evaluation.factors : [],
+          requiredAction: evaluation.requiredAction,
+          evidenceBundleId: evaluation.evidenceBundleId ?? null,
+          mode: evaluation.mode,
+        });
+      } catch (err) {
+        try {
+          stopAudioStream();
+        } catch {
+          /* ignore */
+        }
+        audioStarted = false;
+        console.warn('[RiskEval] evaluation failed — failing closed to WARNING:', err);
+        if (aliveRef.current) setPhase('failed');
       }
     };
 
-    run();
+    void run();
 
     return () => {
-      cancelled = true;
-      stopAudioStream();
+      aliveRef.current = false;
+      if (audioStarted) {
+        try {
+          stopAudioStream();
+        } catch {
+          /* ignore */
+        }
+      }
     };
-  }, [beneficiary, amount, note, routeByTier]);
+  }, [beneficiary, amount, note, demoScenario, transactionId, navigation, attempt]);
 
-  // ─── UI ───────────────────────────────────────────────────────────────────
+  // ── Fail-closed: show the notice, then force the WARNING decision ──────────
+  useEffect(() => {
+    if (phase !== 'failed') return undefined;
+    failTimerRef.current = setTimeout(goToDecisionUnavailable, FAIL_CLOSED_HOLD_MS);
+    return () => {
+      if (failTimerRef.current) {
+        clearTimeout(failTimerRef.current);
+        failTimerRef.current = null;
+      }
+    };
+  }, [phase, goToDecisionUnavailable]);
+
+  const handleRetry = useCallback(() => {
+    if (failTimerRef.current) {
+      clearTimeout(failTimerRef.current);
+      failTimerRef.current = null;
+    }
+    setPhase('evaluating');
+    setAttempt(n => n + 1);
+  }, []);
+
+  const handleCancel = useCallback(() => {
+    if (failTimerRef.current) {
+      clearTimeout(failTimerRef.current);
+      failTimerRef.current = null;
+    }
+    const id = sessionIdRef.current;
+    if (id) {
+      void cancelSession(id).catch(e =>
+        console.warn('[RiskEval] cancelSession failed (already terminal?):', e),
+      );
+    }
+    try {
+      stopAudioStream();
+    } catch {
+      /* ignore */
+    }
+    navigation.reset({ index: 0, routes: [{ name: 'Home' }] });
+  }, [navigation]);
+
+  const failed = phase === 'failed';
+
   return (
-    <SafeAreaView style={styles.safe}>
-      <StatusBar barStyle="light-content" backgroundColor={NAVY} />
-      <Animated.View style={[styles.container, { opacity: fadeAnim }]}>
-        {/* Animated spinner */}
-        <View style={styles.spinnerContainer}>
-          <Animated.View style={[styles.ring, { transform: [{ rotate: spin }] }]} />
-          <View style={styles.shieldIcon}>
-            <Text style={styles.shieldEmoji}>🛡️</Text>
+    <ScreenContainer
+      testID="risk-eval-screen"
+      scroll
+      contentStyle={styles.content}
+      footer={
+        failed ? (
+          <View style={styles.footerStack}>
+            <PrimaryButton
+              testID="risk-eval-continue"
+              label={tr('common.continue')}
+              onPress={goToDecisionUnavailable}
+              accessibilityHint={tr('session.unavailableBody')}
+            />
+            <SecondaryButton
+              testID="risk-eval-retry"
+              label={tr('common.retry')}
+              onPress={handleRetry}
+              style={styles.footerGap}
+            />
           </View>
+        ) : (
+          <SecondaryButton
+            testID="risk-eval-cancel"
+            label={tr('risk.common.cancel')}
+            tone="danger"
+            variant="ghost"
+            onPress={handleCancel}
+            accessibilityHint={tr('risk.common.cancel')}
+          />
+        )
+      }
+    >
+      <Animated.View style={{ opacity: fade }}>
+        <View style={styles.indicatorRow}>
+          <ProtectionSessionIndicator
+            testID="protection-session-indicator"
+            state={failed ? 'complete' : 'evaluating'}
+            label={tr('session.active')}
+            animate={!failed}
+          />
         </View>
 
-        <Text style={styles.title} testID="checking-label">
-          Checking transaction safety…
+        <View style={styles.hero}>
+          <ShieldGlyph
+            size={sf(64)}
+            halo
+            glyph="🛡"
+            color={failed ? theme.risk.warning.main : theme.brand.blue}
+            haloColor={failed ? theme.risk.warning.soft : theme.brand.blueSoft}
+          />
+        </View>
+
+        <Text
+          testID="checking-label"
+          accessibilityRole="header"
+          accessibilityLiveRegion="polite"
+          allowFontScaling={false}
+          style={[
+            styles.title,
+            { fontSize: sf(theme.typography.h1.size), lineHeight: sf(theme.typography.h1.lineHeight) },
+          ]}
+        >
+          {failed ? tr('session.unavailable') : tr('session.evaluating')}
         </Text>
-        <Text style={styles.subtitle}>
-          Analysing voice, beneficiary &amp; behaviour signals
+
+        <Text
+          allowFontScaling={false}
+          style={[
+            styles.subtitle,
+            { fontSize: sf(theme.typography.body.size), lineHeight: sf(theme.typography.body.lineHeight) },
+          ]}
+        >
+          {failed ? tr('session.unavailableBody') : tr('session.checking')}
         </Text>
 
-        {/* Transaction summary */}
-        <View style={styles.summaryCard} testID="summary-card">
-          <Text style={styles.summaryLabel}>Transaction</Text>
-          <Text style={styles.summaryAmount}>{formatINRCompact(amount)}</Text>
-          <Text style={styles.summaryPayee}>to {beneficiary.name}</Text>
-          <Text style={styles.summaryUpi}>{beneficiary.upiId}</Text>
-        </View>
+        {failed ? (
+          <SecurityAlert
+            testID="risk-eval-unavailable"
+            tone="warning"
+            title={tr('session.unavailable')}
+            message={tr('session.unavailableBody')}
+            style={styles.alert}
+          />
+        ) : (
+          <View
+            testID="risk-progress-bar"
+            accessible
+            accessibilityRole="progressbar"
+            accessibilityLabel={tr('session.evaluating')}
+            accessibilityValue={{ text: tr('session.checking') }}
+            style={styles.progressTrack}
+          >
+            <Animated.View style={[styles.progressFill, { width: progressWidth }]} />
+          </View>
+        )}
 
-        {/* AI signal pills */}
-        <View style={styles.signalsRow}>
-          {['🎙 Voice', '💬 NLP', '📸 OCR', '📊 DB'].map(sig => (
-            <View key={sig} style={styles.signalPill}>
-              <Text style={styles.signalText}>{sig}</Text>
-            </View>
-          ))}
-        </View>
+        <Card
+          testID="risk-eval-summary"
+          style={styles.summary}
+          accessibilityLabel={`${formatINRCompact(amount)}. ${beneficiary.name}. ${beneficiary.upiId}`}
+        >
+          <Text
+            allowFontScaling={false}
+            style={[styles.summaryLabel, { fontSize: sf(theme.typography.tiny.size) }]}
+          >
+            {tr('activity.amount')}
+          </Text>
+          <Text
+            allowFontScaling={false}
+            style={[styles.summaryAmount, { fontSize: sf(theme.typography.amount.size), lineHeight: sf(theme.typography.amount.lineHeight) }]}
+          >
+            {formatINRCompact(amount)}
+          </Text>
+          <Text
+            allowFontScaling={false}
+            style={[styles.summaryPayee, { fontSize: sf(theme.typography.bodyBold.size) }]}
+          >
+            {beneficiary.name}
+          </Text>
+          <Text
+            allowFontScaling={false}
+            style={[styles.summaryUpi, { fontSize: sf(theme.typography.caption.size) }]}
+          >
+            {beneficiary.upiId}
+          </Text>
+        </Card>
       </Animated.View>
-    </SafeAreaView>
+    </ScreenContainer>
   );
 }
 
 const styles = StyleSheet.create({
-  safe:             { flex: 1, backgroundColor: NAVY },
-  container:        { flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 28 },
-  spinnerContainer: { width: 100, height: 100, alignItems: 'center', justifyContent: 'center', marginBottom: 28 },
-  ring: {
-    position: 'absolute',
-    width: 100, height: 100,
-    borderRadius: 50,
-    borderWidth: 4,
-    borderColor: ALLOWED_GREEN,
-    borderTopColor: 'transparent',
+  content: {
+    paddingTop: theme.spacing.xxl,
   },
-  shieldIcon:    { alignItems: 'center', justifyContent: 'center' },
-  shieldEmoji:   { fontSize: 38 },
-  title:         { color: WHITE, fontSize: 22, fontWeight: '800', textAlign: 'center', marginBottom: 10 },
-  subtitle:      { color: NEUTRAL_GRAY, fontSize: 13, textAlign: 'center', lineHeight: 20, marginBottom: 32 },
-  summaryCard: {
-    backgroundColor: NAVY_LIGHT,
-    borderRadius: 16,
-    padding: 20,
-    width: '100%',
+  indicatorRow: {
     alignItems: 'center',
-    marginBottom: 24,
+    marginBottom: theme.spacing.xxl,
   },
-  summaryLabel:  { color: NEUTRAL_GRAY, fontSize: 11, textTransform: 'uppercase', letterSpacing: 1, marginBottom: 6 },
-  summaryAmount: { color: ALLOWED_GREEN, fontSize: 32, fontWeight: '800', letterSpacing: -0.5 },
-  summaryPayee:  { color: WHITE, fontSize: 15, fontWeight: '600', marginTop: 6 },
-  summaryUpi:    { color: NEUTRAL_GRAY, fontSize: 12, marginTop: 2 },
-  signalsRow:    { flexDirection: 'row', gap: 8, flexWrap: 'wrap', justifyContent: 'center' },
-  signalPill: {
-    backgroundColor: '#1A2E45',
-    borderRadius: 20,
-    paddingHorizontal: 14,
-    paddingVertical: 7,
-    borderWidth: 1,
-    borderColor: '#2A4060',
+  hero: {
+    alignItems: 'center',
+    marginBottom: theme.spacing.xl,
   },
-  signalText: { color: NEUTRAL_LIGHT, fontSize: 12, fontWeight: '600' },
+  title: {
+    color: theme.neutral.textPrimary,
+    fontWeight: '700',
+    textAlign: 'center',
+    marginBottom: theme.spacing.sm,
+  },
+  subtitle: {
+    color: theme.neutral.textSecondary,
+    textAlign: 'center',
+    marginBottom: theme.spacing.xxl,
+  },
+  alert: {
+    marginBottom: theme.spacing.xxl,
+  },
+  progressTrack: {
+    height: 10,
+    borderRadius: theme.radius.sm,
+    backgroundColor: theme.neutral.surfaceAlt,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: theme.neutral.border,
+    overflow: 'hidden',
+    marginBottom: theme.spacing.xxl,
+  },
+  progressFill: {
+    height: '100%',
+    borderRadius: theme.radius.sm,
+    backgroundColor: theme.brand.blue,
+  },
+  summary: {
+    alignItems: 'center',
+  },
+  summaryLabel: {
+    color: theme.neutral.textMuted,
+    fontWeight: '600',
+    letterSpacing: 1,
+    textTransform: 'uppercase',
+    marginBottom: theme.spacing.xs,
+  },
+  summaryAmount: {
+    color: theme.brand.navy,
+    fontWeight: '700',
+  },
+  summaryPayee: {
+    color: theme.neutral.textPrimary,
+    fontWeight: '600',
+    marginTop: theme.spacing.sm,
+  },
+  summaryUpi: {
+    color: theme.neutral.textSecondary,
+    marginTop: 2,
+  },
+  footerStack: {
+    width: '100%',
+  },
+  footerGap: {
+    marginTop: theme.spacing.md,
+  },
 });
+
+export default RiskEvalScreen;

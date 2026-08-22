@@ -46,9 +46,14 @@ THRESHOLD_ELEVATED  = int(os.getenv("RISK_THRESHOLD_ELEVATED",  70))
 THRESHOLD_INTERCEPT = int(os.getenv("RISK_THRESHOLD_INTERCEPT", 90))
 
 # ── Factor weights ─────────────────────────────────────────────────────────────
-# Weights sum to 1.0. Increase W2/W3 if CNN accuracy < 85%.
+# Weights sum to 1.0 and must match the playbook §4.1 values, which are also used by
+# backend/services/risk_fusion.py (the engine actually serving /api/v1/risk-score):
+#   W1 audio/voice 0.25, W2 text/coercion 0.20, W3 ocr 0.15,
+#   W4 reputation 0.20, W5 new_beneficiary 0.10, W6 device/anomaly 0.10
+# This previously read [0.25, 0.25, 0.15, 0.15, ...], over-weighting coercion and
+# under-weighting reputation, so the two engines disagreed on the same transaction.
 FACTOR_NAMES   = ["voice", "coercion", "ocr", "reputation", "new_beneficiary", "anomaly"]
-FACTOR_WEIGHTS = np.array([0.25, 0.25, 0.15, 0.15, 0.10, 0.10], dtype=np.float32)
+FACTOR_WEIGHTS = np.array([0.25, 0.20, 0.15, 0.20, 0.10, 0.10], dtype=np.float32)
 
 assert abs(FACTOR_WEIGHTS.sum() - 1.0) < 1e-6, "Weights must sum to 1.0"
 
@@ -83,9 +88,24 @@ def _load_calibrator():
         return _calibrator
 
     if CALIBRATOR_PATH.exists():
-        with open(CALIBRATOR_PATH, "rb") as f:
-            _calibrator = pickle.load(f)
-        print(f"[risk_fusion] Loaded calibrator from {CALIBRATOR_PATH} ✓")
+        try:
+            with open(CALIBRATOR_PATH, "rb") as f:
+                payload = pickle.load(f)
+            # Accept either a bare estimator or a {"model": ...} wrapper, and verify
+            # it takes the single raw-score feature this module calls it with —
+            # loading a 6-feature model here would raise deep inside predict_proba.
+            candidate = payload.get("model") if isinstance(payload, dict) else payload
+            n_in = getattr(candidate, "n_features_in_", 1)
+            if hasattr(candidate, "predict_proba") and n_in == 1:
+                _calibrator = candidate
+                print(f"[risk_fusion] Loaded calibrator from {CALIBRATOR_PATH} ✓")
+            else:
+                print(f"[risk_fusion] {CALIBRATOR_PATH.name} is not a 1-feature Platt "
+                      f"scaler (n_features_in={n_in}) — using synthetic calibrator")
+                _calibrator = _build_synthetic_calibrator()
+        except Exception as exc:
+            print(f"[risk_fusion] calibrator load failed ({exc}) — using synthetic calibrator")
+            _calibrator = _build_synthetic_calibrator()
     else:
         _calibrator = _build_synthetic_calibrator()
         print("[risk_fusion] Using synthetic-trained calibrator (no calibrator.pkl found)")

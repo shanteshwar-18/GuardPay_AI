@@ -18,8 +18,10 @@ import {
   ScrollView,
 } from 'react-native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
+import { useTranslation } from 'react-i18next';
 import { RootStackParamList } from '../types/navigation';
 import { amountInWords, formatINRCompact } from '../services/format';
+import { useScaledFont } from '../context/SeniorModeContext';
 import {
   NAVY,
   NAVY_LIGHT,
@@ -34,6 +36,8 @@ type Props = NativeStackScreenProps<RootStackParamList, 'Amount'>;
 
 export function AmountScreen({ route, navigation }: Props) {
   const { beneficiary } = route.params;
+  const { t } = useTranslation();
+  const sf = useScaledFont();
   const [rawAmount, setRawAmount] = useState('');
   const [note, setNote] = useState('');
 
@@ -42,7 +46,8 @@ export function AmountScreen({ route, navigation }: Props) {
 
   const handleConfirm = () => {
     if (amount <= 0) return;
-    navigation.navigate('RiskEval', { beneficiary, amount, note: note || undefined });
+    // Legacy route: RiskEval now mints its own session id via createSession().
+    navigation.navigate('RiskEval', { sessionId: '', beneficiary, amount, note: note || undefined });
   };
 
   return (
@@ -54,25 +59,40 @@ export function AmountScreen({ route, navigation }: Props) {
       >
         <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
           {/* Beneficiary summary */}
-          <View style={styles.payeeTag}>
-            <Text style={styles.payeeLabel}>Paying to</Text>
-            <Text style={styles.payeeName}>{beneficiary.name}</Text>
-            <Text style={styles.payeeUpi}>{beneficiary.upiId}</Text>
+          <View
+            style={styles.payeeTag}
+            accessible={true}
+            accessibilityRole="summary"
+            accessibilityLabel={
+              `Paying to ${beneficiary.name}, ${beneficiary.upiId}.` +
+              (beneficiary.isNewBeneficiary ? ` ${t('beneficiary.newPayee')}` : '')
+            }
+          >
+            <Text style={[styles.payeeLabel, { fontSize: sf(11) }]}>Paying to</Text>
+            <Text style={[styles.payeeName, { fontSize: sf(17) }]}>{beneficiary.name}</Text>
+            <Text style={[styles.payeeUpi, { fontSize: sf(12) }]}>{beneficiary.upiId}</Text>
             {beneficiary.isNewBeneficiary && (
               <View style={styles.newBadge}>
-                <Text style={styles.newBadgeText}>NEW PAYEE</Text>
+                <Text style={[styles.newBadgeText, { fontSize: sf(10) }]}>
+                  {t('badge.new')}
+                </Text>
               </View>
             )}
           </View>
 
-          <Text style={styles.heading}>Enter Amount</Text>
+          <Text
+            style={[styles.heading, { fontSize: sf(22) }]}
+            accessibilityRole="header"
+          >
+            {t('amount.placeholder')}
+          </Text>
 
           {/* Amount Input */}
           <View style={styles.amountRow}>
-            <Text style={styles.currencySymbol}>₹</Text>
+            <Text style={[styles.currencySymbol, { fontSize: sf(32) }]}>₹</Text>
             <TextInput
               testID="amount-input"
-              style={styles.amountInput}
+              style={[styles.amountInput, { fontSize: sf(40) }]}
               placeholder="0"
               placeholderTextColor={NEUTRAL_GRAY}
               value={rawAmount}
@@ -80,23 +100,36 @@ export function AmountScreen({ route, navigation }: Props) {
               keyboardType="numeric"
               autoFocus
               maxLength={10}
+              accessible={true}
+              accessibilityLabel={t('amount.placeholder')}
+              accessibilityHint="Enter the rupee amount you want to send"
             />
           </View>
 
           {/* Amount in Words */}
           {wordsLine ? (
-            <Text testID="amount-in-words" style={styles.amountWords}>{wordsLine}</Text>
+            <Text
+              testID="amount-in-words"
+              style={[styles.amountWords, { fontSize: sf(13) }]}
+              accessibilityLiveRegion="polite"
+              accessibilityLabel={wordsLine}
+            >
+              {wordsLine}
+            </Text>
           ) : null}
 
           {/* Note Field */}
           <TextInput
             testID="note-input"
-            style={styles.noteInput}
-            placeholder="Add a note (optional)"
+            style={[styles.noteInput, { fontSize: sf(14) }]}
+            placeholder={t('amount.notePlaceholder')}
             placeholderTextColor={NEUTRAL_GRAY}
             value={note}
             onChangeText={setNote}
             maxLength={100}
+            accessible={true}
+            accessibilityLabel={t('amount.notePlaceholder')}
+            accessibilityHint="Optional message shown with this payment"
           />
 
           {/* Confirm Button */}
@@ -106,9 +139,18 @@ export function AmountScreen({ route, navigation }: Props) {
             onPress={handleConfirm}
             disabled={amount <= 0}
             activeOpacity={0.85}
+            accessible={true}
+            accessibilityRole="button"
+            accessibilityState={{ disabled: amount <= 0 }}
+            accessibilityLabel={
+              amount > 0
+                ? `${t('amount.confirm')} — ${formatINRCompact(amount)} to ${beneficiary.name}`
+                : t('amount.placeholder')
+            }
+            accessibilityHint="Runs the GuardPay fraud check before the payment is made"
           >
-            <Text style={styles.confirmBtnText}>
-              {amount > 0 ? `Pay ${formatINRCompact(amount)}` : 'Enter Amount'}
+            <Text style={[styles.confirmBtnText, { fontSize: sf(17) }]}>
+              {amount > 0 ? `${t('amount.confirm')} · ${formatINRCompact(amount)}` : t('amount.placeholder')}
             </Text>
           </TouchableOpacity>
         </ScrollView>

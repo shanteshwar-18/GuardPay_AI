@@ -7,7 +7,7 @@
  * SHAP explanation rendering — joint ownership with Jatin's backend output.
  */
 
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useMemo, useRef } from 'react';
 import {
   View,
   Text,
@@ -25,6 +25,8 @@ import { RiskFactorList } from '../components/RiskFactorList';
 import { formatINRCompact } from '../services/format';
 import { speak } from '../services/tts';
 import { useLanguage, toLang } from '../services/languageState';
+import { useSeniorMode } from '../context/SeniorModeContext';
+import { simplifyExplanation } from '../i18n/simplifiedStrings';
 import {
   NAVY,
   NAVY_LIGHT,
@@ -48,9 +50,20 @@ export function WarningScreen({ route, navigation }: Props) {
   const { beneficiary, amount, riskScore, explanation } = route.params;
   const { t } = useTranslation();
   const { currentLanguage } = useLanguage();
+  const { isSeniorMode, fontScale, scaleFont: sf } = useSeniorMode();
   const gaugeAnim = useRef(new Animated.Value(0)).current;
 
-  const factors = explanation && explanation.length > 0 ? explanation : DEFAULT_EXPLANATION;
+  const rawFactors = explanation && explanation.length > 0 ? explanation : DEFAULT_EXPLANATION;
+
+  // Senior Citizen Mode: rewrite raw SHAP factor names in plain language.
+  const factors = useMemo(
+    () =>
+      isSeniorMode
+        ? rawFactors.map(f => ({ ...f, factor: simplifyExplanation(f.factor) }))
+        : rawFactors,
+    [isSeniorMode, rawFactors]
+  );
+
   const safeScore = Math.min(100, Math.max(0, riskScore));
 
   // Animate gauge fill on mount
@@ -82,34 +95,61 @@ export function WarningScreen({ route, navigation }: Props) {
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
 
         {/* Header */}
-        <Text style={styles.title}>⚠️ Payment Warning</Text>
+        <Text
+          style={[styles.title, { fontSize: sf(22) }]}
+          accessibilityRole="header"
+        >
+          {t('warning.title')}
+        </Text>
 
-        {/* Risk Score Gauge */}
+        {/* Risk Meter.
+            Senior Citizen Mode → COLOUR-ONLY: a full amber bar, no numbers at
+            all. Standard mode → animated gauge with the 0 / score / 100 scale. */}
         <View style={styles.gaugeSection}>
-          <View style={styles.gaugeTrack}>
-            <Animated.View
-              style={[styles.gaugeFill, { width: gaugeWidth }]}
-              accessibilityLabel={`Risk score: ${safeScore} out of 100`}
-            />
-          </View>
-          <View style={styles.gaugeLabels}>
-            <Text style={styles.gaugeLabelLeft}>0</Text>
-            <Text style={styles.riskScoreText} testID="risk-score-text">{safeScore}</Text>
-            <Text style={styles.gaugeLabelRight}>100</Text>
-          </View>
-          <Text style={styles.riskBand}>Risk Level: WARNING</Text>
+          {isSeniorMode ? (
+            <View
+              testID="risk-meter-colour-only"
+              accessible={true}
+              accessibilityRole="image"
+              accessibilityLabel={t('warning.riskLevel')}
+            >
+              <View style={[styles.gaugeTrack, styles.gaugeTrackSenior]}>
+                <View style={[styles.gaugeFill, styles.gaugeFillSenior]} />
+              </View>
+            </View>
+          ) : (
+            <>
+              <View style={styles.gaugeTrack}>
+                <Animated.View
+                  style={[styles.gaugeFill, { width: gaugeWidth }]}
+                  accessibilityLabel={`Risk score: ${safeScore} out of 100`}
+                />
+              </View>
+              <View style={styles.gaugeLabels}>
+                <Text style={styles.gaugeLabelLeft}>0</Text>
+                <Text style={styles.riskScoreText} testID="risk-score-text">{safeScore}</Text>
+                <Text style={styles.gaugeLabelRight}>100</Text>
+              </View>
+            </>
+          )}
+          <Text style={[styles.riskBand, { fontSize: sf(12) }]}>{t('warning.riskLevel')}</Text>
         </View>
 
         {/* Transaction Summary */}
-        <View style={styles.txnCard}>
-          <Text style={styles.txnAmount}>{formatINRCompact(amount)}</Text>
-          <Text style={styles.txnPayee}>→ {beneficiary.name}</Text>
-          <Text style={styles.txnUpi}>{beneficiary.upiId}</Text>
+        <View
+          style={styles.txnCard}
+          accessible={true}
+          accessibilityRole="summary"
+          accessibilityLabel={`${formatINRCompact(amount)} to ${beneficiary.name}, ${beneficiary.upiId}`}
+        >
+          <Text style={[styles.txnAmount, { fontSize: sf(28) }]}>{formatINRCompact(amount)}</Text>
+          <Text style={[styles.txnPayee, { fontSize: sf(15) }]}>→ {beneficiary.name}</Text>
+          <Text style={[styles.txnUpi, { fontSize: sf(12) }]}>{beneficiary.upiId}</Text>
         </View>
 
         {/* Warning Message (multilingual) */}
-        <View style={styles.warningBox}>
-          <Text style={styles.warningText}>
+        <View style={styles.warningBox} accessible={true} accessibilityRole="alert">
+          <Text style={[styles.warningText, { fontSize: sf(14), lineHeight: sf(22) }]}>
             {t('warning.mainMessage', {
               beneficiary: beneficiary.name,
               amount: formatINRCompact(amount),
@@ -118,13 +158,18 @@ export function WarningScreen({ route, navigation }: Props) {
         </View>
 
         {/* SHAP Factor Breakdown */}
-        <Text style={styles.factorsTitle}>
+        <Text
+          style={[styles.factorsTitle, { fontSize: sf(15) }]}
+          accessibilityRole="header"
+        >
           {t('warning.factorsTitle')}
         </Text>
         <RiskFactorList
           factors={factors}
           variant="warning"
           maxHeight={220}
+          hidePoints={isSeniorMode}
+          fontScale={fontScale}
         />
 
         {/* Action Buttons */}
@@ -134,18 +179,27 @@ export function WarningScreen({ route, navigation }: Props) {
             style={styles.cancelBtn}
             onPress={() => navigation.navigate('Home')}
             activeOpacity={0.85}
+            accessible={true}
+            accessibilityRole="button"
+            accessibilityLabel={t('warning.cancel')}
+            accessibilityHint="Stops this payment and returns to the home screen. Recommended."
           >
-            <Text style={styles.cancelBtnText}>Cancel</Text>
+            <Text style={[styles.cancelBtnText, { fontSize: sf(15) }]}>{t('warning.cancel')}</Text>
           </TouchableOpacity>
           <TouchableOpacity
             testID="proceed-btn"
             style={styles.proceedBtn}
+            // Legacy route: Pin now takes a RiskTierId and mints/expects a session id.
             onPress={() => navigation.navigate('Pin', {
-              beneficiary, amount, riskScore, tier: 'WARNING', explanation: factors
+              sessionId: '', beneficiary, amount, riskScore, tier: 'WARNING',
             })}
             activeOpacity={0.85}
+            accessible={true}
+            accessibilityRole="button"
+            accessibilityLabel={t('warning.proceed')}
+            accessibilityHint={`Ignores the fraud warning and continues to pay ${formatINRCompact(amount)} to ${beneficiary.name}`}
           >
-            <Text style={styles.proceedBtnText}>Proceed Anyway</Text>
+            <Text style={[styles.proceedBtnText, { fontSize: sf(15) }]}>{t('warning.proceed')}</Text>
           </TouchableOpacity>
         </View>
       </ScrollView>
@@ -170,6 +224,9 @@ const styles = StyleSheet.create({
     backgroundColor: WARNING_AMBER,
     borderRadius: 7,
   },
+  // Senior Citizen Mode — colour-only meter: taller bar, always full, no digits
+  gaugeTrackSenior: { height: 28, borderRadius: 14, marginBottom: 10 },
+  gaugeFillSenior: { width: '100%', borderRadius: 14 },
   gaugeLabels: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   gaugeLabelLeft: { color: NEUTRAL_GRAY, fontSize: 11 },
   gaugeLabelRight: { color: NEUTRAL_GRAY, fontSize: 11 },

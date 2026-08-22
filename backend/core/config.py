@@ -39,6 +39,18 @@ class Settings(BaseSettings):
     RISK_THRESHOLD_ELEVATED: int = 70
     RISK_THRESHOLD_INTERCEPT: int = 90
 
+    # ── Demo mode (spec §29, §50) ────────────────────────────────────────────
+    # When true, POST /api/v1/payment/session/{sid}/evaluate accepts a
+    # `demo_scenario` that forces a deterministic factor vector for stage demos.
+    # OFF by default: with the flag off the parameter is rejected with 400 and
+    # there is no code path by which a demo vector can reach the real scorer.
+    GUARDPAY_DEMO_MODE: bool = False
+
+    # ── Payment authorization gate ───────────────────────────────────────────
+    VERIFICATION_CODE_TTL_SECONDS: int = 300      # 5 minutes (spec)
+    VERIFICATION_MAX_ATTEMPTS: int = 3            # then the session is FROZEN
+    HOLD_TIMEOUT_SECONDS: int = 300               # HELD → FROZEN on timeout
+
     class Config:
         env_file = ".env"
         env_file_encoding = "utf-8"

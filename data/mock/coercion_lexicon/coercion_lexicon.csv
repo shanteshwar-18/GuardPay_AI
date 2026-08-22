@@ -1,0 +1,538 @@
+phrase,lang,category,severity
+this is the cbi speaking,en,authority_impersonation,high
+i am calling from the central bureau of investigation,en,authority_impersonation,high
+cbi officer speaking,en,authority_impersonation,high
+enforcement directorate officer here,en,authority_impersonation,high
+this is the ed mumbai zonal office,en,authority_impersonation,high
+i am an inspector from the cyber crime branch,en,authority_impersonation,high
+speaking from delhi police headquarters,en,authority_impersonation,high
+this is trai the telecom regulatory authority,en,authority_impersonation,high
+your number is being monitored by trai,en,authority_impersonation,high
+calling from the customs department at mumbai airport,en,authority_impersonation,high
+narcotics control bureau investigation officer,en,authority_impersonation,high
+this is the reserve bank of india fraud cell,en,authority_impersonation,high
+rbi compliance department calling,en,authority_impersonation,high
+i am from the income tax department,en,authority_impersonation,high
+sebi surveillance division speaking,en,authority_impersonation,high
+this is the ministry of home affairs cyber cell,en,authority_impersonation,high
+calling on behalf of the supreme court registry,en,authority_impersonation,high
+interpol has flagged your name,en,authority_impersonation,high
+i am the investigating officer in your case,en,authority_impersonation,high
+this call is being recorded by the police department,en,authority_impersonation,high
+sbi fraud prevention department speaking,en,authority_impersonation,high
+hdfc bank security team calling,en,authority_impersonation,high
+icici bank compliance officer here,en,authority_impersonation,high
+amazon fraud investigation team,en,authority_impersonation,high
+this is the fedex courier legal team,en,authority_impersonation,high
+your case has been transferred to the crime branch,en,authority_impersonation,high
+my badge number is verified you can check it online,en,authority_impersonation,high
+this is an official government call do not disconnect,en,authority_impersonation,high
+you are under digital arrest,en,arrest_threat,high
+you will be arrested within two hours,en,arrest_threat,high
+an arrest warrant has been issued against you,en,arrest_threat,high
+a non bailable warrant is out in your name,en,arrest_threat,high
+police are on the way to your house,en,arrest_threat,high
+an fir has been registered against you,en,arrest_threat,high
+your name has come up in a money laundering case,en,arrest_threat,high
+you are named in a drug trafficking investigation,en,arrest_threat,high
+this is a serious criminal offence,en,arrest_threat,high
+you will face seven years of imprisonment,en,arrest_threat,high
+court summons have been issued,en,arrest_threat,high
+legal action will be taken against you today,en,arrest_threat,high
+we will send a police team to your address,en,arrest_threat,high
+cooperate or face arrest,en,arrest_threat,high
+pay now or be arrested,en,arrest_threat,high
+your arrest will be executed by the local station,en,arrest_threat,high
+a lookout notice has been issued against you,en,arrest_threat,high
+you are the prime accused in this case,en,arrest_threat,high
+we have evidence linking you to the crime,en,arrest_threat,high
+the magistrate has ordered your custody,en,arrest_threat,high
+you cannot leave the city until this is settled,en,arrest_threat,high
+terrorist funding has been traced to your account,en,arrest_threat,high
+a case under pmla has been filed,en,arrest_threat,high
+the cyber crime cell has opened a case against you,en,arrest_threat,high
+you will be taken into custody tonight,en,arrest_threat,high
+remain at home until the police team arrives,en,arrest_threat,high
+hawala transactions have been traced to your name,en,arrest_threat,high
+your account will be frozen,en,account_freeze,high
+your bank account has been suspended,en,account_freeze,high
+all your accounts are being blocked,en,account_freeze,high
+your aadhaar is linked to illegal activity,en,account_freeze,high
+your aadhaar has been misused for illegal transactions,en,account_freeze,high
+your pan card has been blocked,en,account_freeze,high
+your sim card will be deactivated in two hours,en,account_freeze,high
+your mobile number will be disconnected by trai,en,account_freeze,high
+your upi id is being suspended,en,account_freeze,high
+all transactions from your account are on hold,en,account_freeze,high
+the bank has flagged your account for fraud,en,account_freeze,high
+your credit card has been blocked by the bank,en,account_freeze,high
+your account is under investigation for suspicious activity,en,account_freeze,high
+a freeze order has been placed on your funds,en,account_freeze,high
+your digital wallet will be locked permanently,en,account_freeze,high
+your net banking access will be revoked,en,account_freeze,high
+your account was used to launder money,en,account_freeze,high
+illegal transactions were detected from your account,en,account_freeze,high
+your account is linked to a shell company,en,account_freeze,high
+your bank locker will be sealed,en,account_freeze,high
+your salary account will be attached,en,account_freeze,high
+rbi has ordered a freeze on your deposits,en,account_freeze,high
+your kyc is invalid and the account will be closed,en,account_freeze,high
+your account will be permanently deactivated today,en,account_freeze,high
+we are blocking all outgoing payments from your account,en,account_freeze,high
+your fixed deposit has been placed under lien,en,account_freeze,high
+time is running out,en,urgency,medium
+urgent action is required right now,en,urgency,medium
+you must act within thirty minutes,en,urgency,medium
+you have only one hour to respond,en,urgency,medium
+this must be done before midnight,en,urgency,medium
+this is your final warning,en,urgency,medium
+this is the last notice you will receive,en,urgency,medium
+do not delay any further,en,urgency,low
+act immediately or lose everything,en,urgency,low
+the window closes in fifteen minutes,en,urgency,medium
+i cannot hold this case any longer,en,urgency,medium
+the deadline expires today at five pm,en,urgency,medium
+every minute of delay increases the penalty,en,urgency,medium
+the system will auto lock your account shortly,en,urgency,medium
+we need your response in the next ten minutes,en,urgency,medium
+there is no time to think about it,en,urgency,low
+you have to decide right now,en,urgency,low
+i am giving you one last chance,en,urgency,medium
+the senior officer is waiting on the other line,en,urgency,medium
+hurry up the court closes soon,en,urgency,low
+tonight is the last date for settlement,en,urgency,medium
+your file will be sent to court in an hour,en,urgency,medium
+this settlement offer is valid only for today,en,urgency,medium
+complete this before the bank closes,en,urgency,low
+do it now while i am on the call,en,urgency,low
+i can only hold the warrant for a few minutes,en,urgency,high
+do not tell anyone about this call,en,secrecy,medium
+keep this call completely secret,en,secrecy,medium
+do not inform your family members,en,secrecy,medium
+do not discuss this with your wife or children,en,secrecy,medium
+do not hang up the phone,en,secrecy,medium
+stay on the line until i say so,en,secrecy,medium
+this investigation is confidential,en,secrecy,medium
+sharing this information is a punishable offence,en,secrecy,medium
+do not visit the bank branch,en,secrecy,medium
+do not talk to the bank staff about this,en,secrecy,medium
+do not contact any lawyer,en,secrecy,medium
+keep the video call switched on at all times,en,secrecy,medium
+go to a room alone and lock the door,en,secrecy,medium
+do not call anyone else during this process,en,secrecy,medium
+do not put me on hold,en,secrecy,low
+if you tell anyone the case will get worse,en,secrecy,medium
+this is a classified government matter,en,secrecy,medium
+you are bound by the official secrets act,en,secrecy,medium
+do not take screenshots of this conversation,en,secrecy,medium
+delete this call record afterwards,en,secrecy,medium
+do not tell the cashier why you are withdrawing,en,secrecy,medium
+tell the bank it is for a family function,en,secrecy,medium
+switch off your other phone,en,secrecy,low
+nobody should know that you are speaking to us,en,secrecy,medium
+do not seek help from anyone,en,secrecy,medium
+this conversation is under judicial confidentiality,en,secrecy,medium
+transfer the money immediately,en,payment_demand,high
+you must pay now to clear your name,en,payment_demand,high
+send the amount to this safe account,en,payment_demand,high
+deposit the funds in the government escrow account,en,payment_demand,high
+transfer via upi to the account i give you,en,payment_demand,high
+scan this qr code to make the payment,en,payment_demand,high
+pay the penalty of two lakh rupees,en,payment_demand,high
+the case will be closed after payment,en,payment_demand,high
+send the money for verification and it will be refunded,en,payment_demand,high
+transfer your entire balance for safe keeping,en,payment_demand,high
+withdraw the cash and deposit it in this account,en,payment_demand,high
+buy gift cards and share the codes with me,en,payment_demand,high
+pay the security deposit to release your funds,en,payment_demand,high
+make the transfer before i disconnect,en,payment_demand,high
+use imps for a faster transfer,en,payment_demand,medium
+send the money in three separate transactions,en,payment_demand,high
+transfer the amount to the rbi verification account,en,payment_demand,high
+clearance charges must be paid in advance,en,payment_demand,high
+pay the customs duty to release the parcel,en,payment_demand,high
+we need a refundable deposit to close the case,en,payment_demand,high
+transfer the money to this beneficiary now,en,payment_demand,high
+send the payment screenshot after transferring,en,payment_demand,medium
+break your fixed deposit and transfer the money,en,payment_demand,high
+take a loan if you do not have the funds,en,payment_demand,high
+pay the fine online through this link,en,payment_demand,high
+the amount must reach us before the court hearing,en,payment_demand,high
+share the otp for verification,en,verification_ruse,high
+tell me the otp you just received,en,verification_ruse,high
+video kyc verification is required urgently,en,verification_ruse,medium
+confirm your aadhaar number for verification,en,verification_ruse,medium
+read out your debit card number for confirmation,en,verification_ruse,medium
+we need your cvv to verify the account,en,verification_ruse,high
+install this app so that we can verify your device,en,verification_ruse,medium
+share your screen for the verification process,en,verification_ruse,medium
+click the link and fill the verification form,en,verification_ruse,medium
+we are sending a test transaction please verify it,en,verification_ruse,medium
+your account needs re kyc immediately,en,verification_ruse,medium
+verify your identity to avoid account closure,en,verification_ruse,medium
+tell me your current account balance for verification,en,verification_ruse,medium
+we will refund the money after verification,en,verification_ruse,medium
+this is only a verification transfer nothing will be deducted,en,verification_ruse,medium
+approve the request on your upi app,en,verification_ruse,medium
+enter your upi pin to receive the refund,en,verification_ruse,high
+download anydesk so the officer can verify,en,verification_ruse,medium
+confirm your net banking user id,en,verification_ruse,medium
+we need to verify the source of your funds,en,verification_ruse,medium
+share your bank statement on whatsapp,en,verification_ruse,low
+verify your address on this government portal,en,verification_ruse,medium
+the money will bounce back automatically after checking,en,verification_ruse,medium
+this is an rbi mandated verification procedure,en,verification_ruse,medium
+give me the last six digits of your card,en,verification_ruse,medium
+confirm the code we have sent to your email,en,verification_ruse,medium
+you will lose your job over this,en,intimidation,medium
+your family will also be named in the case,en,intimidation,medium
+your children will be questioned by the police,en,intimidation,high
+your name will appear in the newspapers,en,intimidation,medium
+your reputation will be destroyed,en,intimidation,medium
+your property will be seized,en,intimidation,high
+your passport will be cancelled,en,intimidation,medium
+you will be blacklisted permanently,en,intimidation,medium
+do not argue with me,en,intimidation,low
+do not question a government officer,en,intimidation,medium
+you are wasting the officers time,en,intimidation,medium
+your behaviour is being noted in the case file,en,intimidation,medium
+non cooperation is itself a crime,en,intimidation,medium
+if you disconnect the arrest will be immediate,en,intimidation,high
+we can trace your location right now,en,intimidation,medium
+we know your address and your workplace,en,intimidation,medium
+your neighbours will find out about the case,en,intimidation,medium
+you will be summoned to delhi for questioning,en,intimidation,medium
+things will get very bad for you,en,intimidation,medium
+you have no choice in this matter,en,intimidation,medium
+i am warning you for the last time,en,intimidation,medium
+do not test my patience,en,intimidation,low
+your visa application will be rejected forever,en,intimidation,medium
+the consequences will be severe,en,intimidation,medium
+you will regret not cooperating,en,intimidation,medium
+we will freeze everything you own,en,intimidation,high
+मैं सीबीआई अधिकारी बोल रहा हूँ,hi,authority_impersonation,high
+main cbi adhikari bol raha hoon,hi,authority_impersonation,high
+सीबीआई मुख्यालय दिल्ली से बात कर रहे हैं,hi,authority_impersonation,high
+cbi mukhyalay delhi se baat kar rahe hain,hi,authority_impersonation,high
+यह प्रवर्तन निदेशालय का फोन है,hi,authority_impersonation,high
+yeh pravartan nideshalay ka phone hai,hi,authority_impersonation,high
+मुंबई साइबर क्राइम पुलिस से बोल रहा हूँ,hi,authority_impersonation,high
+mumbai cyber crime police se bol raha hoon,hi,authority_impersonation,high
+ट्राई की तरफ से सूचना दी जा रही है,hi,authority_impersonation,high
+trai ki taraf se soochna di ja rahi hai,hi,authority_impersonation,high
+कस्टम विभाग से बोल रहे हैं आपका पार्सल पकड़ा गया है,hi,authority_impersonation,high
+custom vibhag se bol rahe hain aapka parcel pakda gaya hai,hi,authority_impersonation,high
+आरबीआई का अधिकारी बोल रहा हूँ,hi,authority_impersonation,high
+rbi ka adhikari bol raha hoon,hi,authority_impersonation,high
+नारकोटिक्स कंट्रोल ब्यूरो का जांच अधिकारी हूँ,hi,authority_impersonation,high
+narcotics control bureau ka jaanch adhikari hoon,hi,authority_impersonation,high
+यह सुप्रीम कोर्ट का आदेश है,hi,authority_impersonation,high
+yeh supreme court ka aadesh hai,hi,authority_impersonation,high
+आपके खिलाफ गिरफ्तारी वारंट जारी हुआ है,hi,arrest_threat,high
+aapke khilaf giraftari warrant jari hua hai,hi,arrest_threat,high
+आप डिजिटल अरेस्ट में हैं,hi,arrest_threat,high
+aap digital arrest mein hain,hi,arrest_threat,high
+पुलिस आपके घर आ रही है,hi,arrest_threat,high
+police aapke ghar aa rahi hai,hi,arrest_threat,high
+दो घंटे में आपको गिरफ्तार कर लिया जाएगा,hi,arrest_threat,high
+do ghante mein aapko giraftar kar liya jayega,hi,arrest_threat,high
+आपके नाम पर एफआईआर दर्ज हो चुकी है,hi,arrest_threat,high
+aapke naam par fir darj ho chuki hai,hi,arrest_threat,high
+मनी लॉन्ड्रिंग के केस में आपका नाम आया है,hi,arrest_threat,high
+money laundering ke case mein aapka naam aaya hai,hi,arrest_threat,high
+जेल जाने से बचना है तो सहयोग कीजिए,hi,arrest_threat,high
+jail jaane se bachna hai to sahyog kijiye,hi,arrest_threat,high
+गैर जमानती वारंट निकला है,hi,arrest_threat,high
+gair jamanti warrant nikla hai,hi,arrest_threat,high
+आपका खाता बंद हो जाएगा,hi,account_freeze,high
+aapka khata band ho jayega,hi,account_freeze,high
+आपका बैंक अकाउंट सील किया जा रहा है,hi,account_freeze,high
+aapka bank account seal kiya ja raha hai,hi,account_freeze,high
+आपका आधार अवैध गतिविधि से जुड़ा है,hi,account_freeze,high
+aapka aadhaar avaidh gatividhi se juda hai,hi,account_freeze,high
+आपका पैन कार्ड ब्लॉक कर दिया गया है,hi,account_freeze,high
+aapka pan card block kar diya gaya hai,hi,account_freeze,high
+आपका सिम कार्ड दो घंटे में बंद हो जाएगा,hi,account_freeze,high
+aapka sim card do ghante mein band ho jayega,hi,account_freeze,high
+आपके सभी लेनदेन फ्रीज कर दिए जाएंगे,hi,account_freeze,high
+aapke sabhi lenden freeze kar diye jayenge,hi,account_freeze,high
+आपकी यूपीआई आईडी निलंबित की जा रही है,hi,account_freeze,high
+aapki upi id nilambit ki ja rahi hai,hi,account_freeze,high
+आयकर विभाग ने आपके सभी खाते रोक दिए हैं,hi,account_freeze,high
+aaykar vibhag ne aapke sabhi khate rok diye hain,hi,account_freeze,high
+तुरंत पैसे भेजिए,hi,urgency,medium
+turant paise bhejiye,hi,urgency,medium
+समय बहुत कम है जल्दी कीजिए,hi,urgency,low
+samay bahut kam hai jaldi kijiye,hi,urgency,low
+तीस मिनट के अंदर भुगतान करना होगा,hi,urgency,medium
+tees minute ke andar bhugtan karna hoga,hi,urgency,medium
+यह आपका आखिरी मौका है,hi,urgency,medium
+yeh aapka aakhri mauka hai,hi,urgency,medium
+आज रात बारह बजे से पहले करना होगा,hi,urgency,medium
+aaj raat baarah baje se pehle karna hoga,hi,urgency,medium
+देरी हुई तो कुछ नहीं हो पाएगा,hi,urgency,medium
+deri hui to kuch nahin ho payega,hi,urgency,medium
+अभी के अभी करना होगा,hi,urgency,low
+abhi ke abhi karna hoga,hi,urgency,low
+पंद्रह मिनट में जवाब दीजिए,hi,urgency,medium
+pandrah minute mein jawab dijiye,hi,urgency,medium
+किसी को मत बताइए,hi,secrecy,medium
+kisi ko mat bataiye,hi,secrecy,medium
+घर वालों को कुछ मत कहिए,hi,secrecy,medium
+ghar walon ko kuch mat kahiye,hi,secrecy,medium
+फोन मत काटिए लाइन पर बने रहिए,hi,secrecy,medium
+phone mat katiye line par bane rahiye,hi,secrecy,medium
+यह जांच गोपनीय है,hi,secrecy,medium
+yeh jaanch gopniya hai,hi,secrecy,medium
+बैंक में जाकर किसी से बात मत कीजिए,hi,secrecy,medium
+bank mein jaakar kisi se baat mat kijiye,hi,secrecy,medium
+वीडियो कॉल चालू रखिए कहीं मत जाइए,hi,secrecy,medium
+video call chalu rakhiye kahin mat jaiye,hi,secrecy,medium
+किसी वकील से संपर्क मत कीजिए,hi,secrecy,medium
+kisi vakil se sampark mat kijiye,hi,secrecy,medium
+अभी पैसा ट्रांसफर करो,hi,payment_demand,high
+abhi paisa transfer karo,hi,payment_demand,high
+सुरक्षित खाते में पैसे जमा कीजिए,hi,payment_demand,high
+surakshit khate mein paise jama kijiye,hi,payment_demand,high
+सत्यापन के लिए पूरी रकम भेजनी होगी,hi,payment_demand,high
+satyapan ke liye poori rakam bhejni hogi,hi,payment_demand,high
+यह क्यूआर कोड स्कैन कीजिए,hi,payment_demand,high
+yeh qr code scan kijiye,hi,payment_demand,high
+जुर्माना भरने पर केस बंद हो जाएगा,hi,payment_demand,high
+jurmana bharne par case band ho jayega,hi,payment_demand,high
+सरकारी एस्क्रो खाते में पैसे डालिए,hi,payment_demand,high
+sarkari escrow khate mein paise daliye,hi,payment_demand,high
+यूपीआई से पचास हजार तुरंत भेजिए,hi,payment_demand,high
+upi se pachas hazar turant bhejiye,hi,payment_demand,high
+सत्यापन के लिए ओटीपी बताइए,hi,verification_ruse,high
+satyapan ke liye otp bataiye,hi,verification_ruse,high
+वीडियो केवाईसी अभी पूरी करनी होगी,hi,verification_ruse,medium
+video kyc abhi poori karni hogi,hi,verification_ruse,medium
+अपना आधार नंबर कन्फर्म कीजिए,hi,verification_ruse,medium
+apna aadhaar number confirm kijiye,hi,verification_ruse,medium
+यह ऐप डाउनलोड करके स्क्रीन शेयर कीजिए,hi,verification_ruse,medium
+yeh app download karke screen share kijiye,hi,verification_ruse,medium
+खाते की जांच के लिए बैलेंस बताइए,hi,verification_ruse,medium
+khate ki jaanch ke liye balance bataiye,hi,verification_ruse,medium
+लिंक पर क्लिक करके फॉर्म भरिए,hi,verification_ruse,medium
+link par click karke form bhariye,hi,verification_ruse,medium
+पैसा वापस आ जाएगा सिर्फ जांच के लिए भेजिए,hi,verification_ruse,medium
+paisa wapas aa jayega sirf jaanch ke liye bhejiye,hi,verification_ruse,medium
+आपकी नौकरी चली जाएगी,hi,intimidation,medium
+aapki naukri chali jayegi,hi,intimidation,medium
+परिवार को भी केस में घसीटा जाएगा,hi,intimidation,medium
+parivar ko bhi case mein ghaseeta jayega,hi,intimidation,medium
+मीडिया में आपका नाम आ जाएगा,hi,intimidation,medium
+media mein aapka naam aa jayega,hi,intimidation,medium
+सहयोग नहीं किया तो अंजाम बुरा होगा,hi,intimidation,medium
+sahyog nahin kiya to anjam bura hoga,hi,intimidation,medium
+आपकी संपत्ति जब्त कर ली जाएगी,hi,intimidation,high
+aapki sampatti jabt kar li jayegi,hi,intimidation,medium
+आपका पासपोर्ट रद्द कर दिया जाएगा,hi,intimidation,medium
+aapka passport radd kar diya jayega,hi,intimidation,medium
+अब बहस मत कीजिए वरना सख्त कार्रवाई होगी,hi,intimidation,medium
+ab bahas mat kijiye varna sakht karrwai hogi,hi,intimidation,medium
+मी सीबीआय अधिकारी बोलतोय,mr,authority_impersonation,high
+mi cbi adhikari boltoy,mr,authority_impersonation,high
+सायबर क्राईम पोलीस स्टेशनमधून बोलतोय,mr,authority_impersonation,high
+cyber crime police station madhun boltoy,mr,authority_impersonation,high
+हा ईडीचा फोन आहे,mr,authority_impersonation,high
+ha ed cha phone aahe,mr,authority_impersonation,high
+ट्रायकडून सूचना देत आहोत,mr,authority_impersonation,high
+trai kadun soochana det aahot,mr,authority_impersonation,high
+कस्टम विभागातून बोलतोय तुमचं पार्सल पकडलं आहे,mr,authority_impersonation,high
+custom vibhagatun boltoy tumcha parcel pakadla aahe,mr,authority_impersonation,high
+आरबीआयचा अधिकारी बोलतोय,mr,authority_impersonation,high
+rbi cha adhikari boltoy,mr,authority_impersonation,high
+हा न्यायालयाचा आदेश आहे,mr,authority_impersonation,high
+ha nyayalayacha aadesh aahe,mr,authority_impersonation,high
+तुमच्यावर अटक वॉरंट आहे,mr,arrest_threat,high
+tumchyavar atak warrant aahe,mr,arrest_threat,high
+तुम्ही डिजिटल अटकेत आहात,mr,arrest_threat,high
+tumhi digital atket aahat,mr,arrest_threat,high
+पोलीस तुमच्या घरी येत आहेत,mr,arrest_threat,high
+police tumchya ghari yet aahet,mr,arrest_threat,high
+तुमच्या नावावर एफआयआर दाखल झाली आहे,mr,arrest_threat,high
+tumchya navavar fir dakhal zali aahe,mr,arrest_threat,high
+मनी लॉन्ड्रिंग प्रकरणात तुमचं नाव आहे,mr,arrest_threat,high
+money laundering prakaranat tumcha naav aahe,mr,arrest_threat,high
+एका तासात अटक होईल,mr,arrest_threat,high
+eka tasat atak hoil,mr,arrest_threat,high
+तुरुंगात जायचं नसेल तर सहकार्य करा,mr,arrest_threat,high
+turungat jaycha nasel tar sahakarya kara,mr,arrest_threat,high
+तुमचं खातं बंद होईल,mr,account_freeze,high
+tumcha khata band hoil,mr,account_freeze,high
+तुमचं बँक खातं गोठवलं जाईल,mr,account_freeze,high
+tumcha bank khata gothavla jail,mr,account_freeze,high
+तुमचं आधार बेकायदेशीर व्यवहारात वापरलं गेलं आहे,mr,account_freeze,high
+tumcha aadhaar bekaydeshir vyavaharat vaparla gela aahe,mr,account_freeze,high
+तुमचं सिम कार्ड ब्लॉक होईल,mr,account_freeze,high
+tumcha sim card block hoil,mr,account_freeze,high
+तुमचं पॅन कार्ड रद्द केलं जाईल,mr,account_freeze,high
+tumcha pan card radd kela jail,mr,account_freeze,high
+तुमचे सर्व व्यवहार थांबवले जातील,mr,account_freeze,high
+tumche sarva vyavahar thambavle jatil,mr,account_freeze,high
+आत्ताच पैसे पाठवा,mr,urgency,medium
+aattach paise pathava,mr,urgency,medium
+वेळ संपत आली आहे,mr,urgency,low
+vel sampat aali aahe,mr,urgency,low
+अर्ध्या तासात पैसे भरा,mr,urgency,medium
+ardhya tasat paise bhara,mr,urgency,medium
+ही तुमची शेवटची संधी आहे,mr,urgency,medium
+hi tumchi shevatchi sandhi aahe,mr,urgency,medium
+उशीर केला तर काहीच होणार नाही,mr,urgency,medium
+ushir kela tar kahich honar nahi,mr,urgency,medium
+हे आजच करावं लागेल,mr,urgency,low
+he aajach karav lagel,mr,urgency,low
+कुणालाही सांगू नका,mr,secrecy,medium
+kunalahi sangu naka,mr,secrecy,medium
+घरच्यांना काही सांगू नका,mr,secrecy,medium
+gharchyanna kahi sangu naka,mr,secrecy,medium
+फोन कट करू नका लाईनवर रहा,mr,secrecy,medium
+phone cut karu naka line var raha,mr,secrecy,medium
+ही चौकशी गोपनीय आहे,mr,secrecy,medium
+hi chaukashi gopniya aahe,mr,secrecy,medium
+बँकेत जाऊन कुणाशी बोलू नका,mr,secrecy,medium
+banket jaun kunashi bolu naka,mr,secrecy,medium
+व्हिडिओ कॉल चालू ठेवा,mr,secrecy,medium
+video call chalu theva,mr,secrecy,medium
+आत्ता पैसे ट्रान्सफर करा,mr,payment_demand,high
+aatta paise transfer kara,mr,payment_demand,high
+सुरक्षित खात्यात पैसे जमा करा,mr,payment_demand,high
+surakshit khatyat paise jama kara,mr,payment_demand,high
+हा क्यूआर कोड स्कॅन करा,mr,payment_demand,high
+ha qr code scan kara,mr,payment_demand,high
+दंड भरल्यावर केस बंद होईल,mr,payment_demand,high
+dand bharlyavar case band hoil,mr,payment_demand,high
+यूपीआयने लगेच पैसे पाठवा,mr,payment_demand,high
+upi ne lagech paise pathava,mr,payment_demand,high
+सरकारी खात्यात रक्कम वळवा,mr,payment_demand,high
+sarkari khatyat rakkam valva,mr,payment_demand,high
+पडताळणीसाठी ओटीपी सांगा,mr,verification_ruse,high
+padtalanisathi otp sanga,mr,verification_ruse,high
+व्हिडिओ केवायसी आत्ताच पूर्ण करा,mr,verification_ruse,medium
+video kyc aattach purna kara,mr,verification_ruse,medium
+तुमचा आधार क्रमांक सांगा,mr,verification_ruse,medium
+tumcha aadhaar kramank sanga,mr,verification_ruse,medium
+हे ॲप डाउनलोड करून स्क्रीन शेअर करा,mr,verification_ruse,medium
+he app download karun screen share kara,mr,verification_ruse,medium
+पैसे परत मिळतील फक्त पडताळणीसाठी पाठवा,mr,verification_ruse,medium
+paise parat miltil fakt padtalanisathi pathava,mr,verification_ruse,medium
+लिंकवर क्लिक करून फॉर्म भरा,mr,verification_ruse,medium
+link var click karun form bhara,mr,verification_ruse,medium
+तुमची नोकरी जाईल,mr,intimidation,medium
+tumchi nokri jail,mr,intimidation,medium
+कुटुंबालाही केसमध्ये ओढलं जाईल,mr,intimidation,medium
+kutumbalahi case madhye odhla jail,mr,intimidation,medium
+सहकार्य केलं नाही तर परिणाम वाईट होतील,mr,intimidation,medium
+sahakarya kela nahi tar parinam wait hotil,mr,intimidation,medium
+तुमची मालमत्ता जप्त होईल,mr,intimidation,medium
+tumchi malmatta japt hoil,mr,intimidation,medium
+तुमचा पासपोर्ट रद्द केला जाईल,mr,intimidation,medium
+tumcha passport radd kela jail,mr,intimidation,medium
+आता वाद घालू नका,mr,intimidation,medium
+aata vaad ghalu naka,mr,intimidation,medium
+वर्तमानपत्रात तुमची बातमी येईल,mr,intimidation,medium
+vartmanpatrat tumchi batmi yeil,mr,intimidation,medium
+நான் சிபிஐ அதிகாரி பேசுகிறேன்,ta,authority_impersonation,high
+naan cbi athikari pesugiren,ta,authority_impersonation,high
+சைபர் கிரைம் காவல் நிலையத்திலிருந்து பேசுகிறேன்,ta,authority_impersonation,high
+cyber crime kaval nilaiyathilirundhu pesugiren,ta,authority_impersonation,high
+இது அமலாக்கத் துறை அழைப்பு,ta,authority_impersonation,high
+idhu amalakka thurai azhaippu,ta,authority_impersonation,high
+டிராய் சார்பாக தகவல் தெரிவிக்கிறோம்,ta,authority_impersonation,high
+trai sarbaga thagaval therivikkirom,ta,authority_impersonation,high
+சுங்கத் துறையிலிருந்து பேசுகிறேன் உங்கள் பார்சல் பிடிபட்டுள்ளது,ta,authority_impersonation,high
+sunga thuraiyilirundhu pesugiren ungal parcel pidipattullathu,ta,authority_impersonation,high
+ரிசர்வ் வங்கி அதிகாரி பேசுகிறேன்,ta,authority_impersonation,high
+reserve bank athikari pesugiren,ta,authority_impersonation,high
+இது நீதிமன்ற உத்தரவு,ta,authority_impersonation,high
+idhu neethimandra uththaravu,ta,authority_impersonation,high
+உங்கள் மீது கைது வாரண்ட் உள்ளது,ta,arrest_threat,high
+ungal meethu kaithu warrant ullathu,ta,arrest_threat,high
+நீங்கள் டிஜிட்டல் கைதில் இருக்கிறீர்கள்,ta,arrest_threat,high
+neengal digital kaithil irukkireergal,ta,arrest_threat,high
+போலீஸ் உங்கள் வீட்டுக்கு வருகிறது,ta,arrest_threat,high
+police ungal veettukku varugirathu,ta,arrest_threat,high
+உங்கள் பெயரில் எஃப்ஐஆர் பதிவு செய்யப்பட்டுள்ளது,ta,arrest_threat,high
+ungal peyaril fir pathivu seyyappattullathu,ta,arrest_threat,high
+பணமோசடி வழக்கில் உங்கள் பெயர் உள்ளது,ta,arrest_threat,high
+panamosadi vazhakkil ungal peyar ullathu,ta,arrest_threat,high
+ஒரு மணி நேரத்தில் கைது செய்யப்படுவீர்கள்,ta,arrest_threat,high
+oru mani nerathil kaithu seyyappaduveergal,ta,arrest_threat,high
+சிறைக்கு போக விரும்பவில்லை என்றால் ஒத்துழையுங்கள்,ta,arrest_threat,high
+siraikku poga virumbavillai endral othuzhaiyungal,ta,arrest_threat,high
+உங்கள் கணக்கு முடக்கப்படும்,ta,account_freeze,high
+ungal kanakku mudakkappadum,ta,account_freeze,high
+உங்கள் வங்கிக் கணக்கு முடக்கம் செய்யப்படுகிறது,ta,account_freeze,high
+ungal vangi kanakku mudakkam seyyappadugirathu,ta,account_freeze,high
+உங்கள் ஆதார் சட்டவிரோத பரிவர்த்தனையில் பயன்படுத்தப்பட்டுள்ளது,ta,account_freeze,high
+ungal aadhaar sattavirodha parivarthanaiyil payanpaduthappattullathu,ta,account_freeze,high
+உங்கள் சிம் கார்டு முடக்கப்படும்,ta,account_freeze,high
+ungal sim card mudakkappadum,ta,account_freeze,high
+உங்கள் பான் கார்டு ரத்து செய்யப்படும்,ta,account_freeze,high
+ungal pan card rathu seyyappadum,ta,account_freeze,high
+அனைத்து பரிவர்த்தனைகளும் நிறுத்தப்படும்,ta,account_freeze,high
+anaithu parivarthanaigalum niruthappadum,ta,account_freeze,high
+உடனே பணம் அனுப்புங்கள்,ta,urgency,medium
+udane panam anuppungal,ta,urgency,medium
+நேரம் முடிந்து வருகிறது,ta,urgency,low
+neram mudinthu varugirathu,ta,urgency,low
+முப்பது நிமிடத்தில் பணம் செலுத்த வேண்டும்,ta,urgency,medium
+muppathu nimidathil panam seluththa vendum,ta,urgency,medium
+இது உங்கள் கடைசி வாய்ப்பு,ta,urgency,medium
+idhu ungal kadaisi vaaippu,ta,urgency,medium
+தாமதம் செய்தால் ஒன்றும் செய்ய முடியாது,ta,urgency,medium
+thamatham seydhal ondrum seyya mudiyathu,ta,urgency,medium
+இப்போதே செய்ய வேண்டும்,ta,urgency,low
+ippothe seyya vendum,ta,urgency,low
+யாரிடமும் சொல்லாதீர்கள்,ta,secrecy,medium
+yaaridamum sollatheergal,ta,secrecy,medium
+வீட்டில் யாரிடமும் சொல்ல வேண்டாம்,ta,secrecy,medium
+veettil yaaridamum solla vendam,ta,secrecy,medium
+அழைப்பை துண்டிக்காதீர்கள் லைனில் இருங்கள்,ta,secrecy,medium
+azhaippai thundikkatheergal line il irungal,ta,secrecy,medium
+இந்த விசாரணை ரகசியமானது,ta,secrecy,medium
+indha visaranai ragasiyamanathu,ta,secrecy,medium
+வங்கிக்கு சென்று யாரிடமும் பேசாதீர்கள்,ta,secrecy,medium
+vangikku sendru yaaridamum pesatheergal,ta,secrecy,medium
+வீடியோ அழைப்பை நிறுத்தாதீர்கள்,ta,secrecy,medium
+video azhaippai niruthatheergal,ta,secrecy,medium
+இப்பவே பணம் அனுப்புங்கள்,ta,payment_demand,high
+ippave panam anuppungal,ta,payment_demand,high
+பாதுகாப்பான கணக்கிற்கு பணம் அனுப்புங்கள்,ta,payment_demand,high
+pathukappana kanakkirku panam anuppungal,ta,payment_demand,high
+இந்த க்யூஆர் கோடை ஸ்கேன் செய்யுங்கள்,ta,payment_demand,high
+indha qr code ai scan seyyungal,ta,payment_demand,high
+அபராதம் கட்டினால் வழக்கு முடிந்துவிடும்,ta,payment_demand,high
+aparadham kattinal vazhakku mudinthuvidum,ta,payment_demand,high
+யூபிஐ மூலம் உடனே பணம் அனுப்புங்கள்,ta,payment_demand,high
+upi moolam udane panam anuppungal,ta,payment_demand,high
+அரசு கணக்கிற்கு தொகையை மாற்றுங்கள்,ta,payment_demand,high
+arasu kanakkirku thogaiyai maatrungal,ta,payment_demand,high
+சரிபார்ப்புக்காக ஓடிபி சொல்லுங்கள்,ta,verification_ruse,high
+saripaarppukkaga otp sollungal,ta,verification_ruse,high
+வீடியோ கேஒய்சி இப்போதே முடிக்க வேண்டும்,ta,verification_ruse,medium
+video kyc ippothe mudikka vendum,ta,verification_ruse,medium
+உங்கள் ஆதார் எண்ணை உறுதிப்படுத்துங்கள்,ta,verification_ruse,medium
+ungal aadhaar ennai uruthippaduthungal,ta,verification_ruse,medium
+இந்த ஆப்பை பதிவிறக்கி திரையை பகிருங்கள்,ta,verification_ruse,medium
+indha app ai pathivirakki thiraiyai pagirungal,ta,verification_ruse,medium
+பணம் திரும்ப வரும் சரிபார்ப்புக்காக மட்டும் அனுப்புங்கள்,ta,verification_ruse,medium
+panam thirumba varum saripaarppukkaga mattum anuppungal,ta,verification_ruse,medium
+இணைப்பை கிளிக் செய்து படிவத்தை நிரப்புங்கள்,ta,verification_ruse,medium
+inaippai click seydhu padivathai nirappungal,ta,verification_ruse,medium
+உங்கள் வேலை போய்விடும்,ta,intimidation,medium
+ungal velai poyvidum,ta,intimidation,medium
+குடும்பமும் வழக்கில் சேர்க்கப்படும்,ta,intimidation,medium
+kudumbamum vazhakkil serkkappadum,ta,intimidation,medium
+ஒத்துழைக்கவில்லை என்றால் விளைவுகள் மோசமாக இருக்கும்,ta,intimidation,medium
+othuzhaikkavillai endral vilaivugal mosamaga irukkum,ta,intimidation,medium
+உங்கள் சொத்து பறிமுதல் செய்யப்படும்,ta,intimidation,medium
+ungal sothu parimuthal seyyappadum,ta,intimidation,medium
+உங்கள் கடவுச்சீட்டு ரத்து செய்யப்படும்,ta,intimidation,medium
+ungal kadavucheettu rathu seyyappadum,ta,intimidation,medium
+இப்போது வாதிடாதீர்கள்,ta,intimidation,medium
+ippothu vaathidatheergal,ta,intimidation,medium
+செய்தித்தாளில் உங்கள் பெயர் வரும்,ta,intimidation,medium
+seydhithalil ungal peyar varum,ta,intimidation,medium

@@ -40,6 +40,11 @@ async def init_reputation_service():
         _collection = None
 
 
+def get_status() -> str:
+    """Real backing-store state, for /health. Never lies about the connection."""
+    return "connected" if _collection is not None else "fallback (mongodb unavailable)"
+
+
 async def _seed_synthetic_upi_ids():
     """
     Seeds 5,000 mock UPI IDs with randomised complaint history.

@@ -7,7 +7,7 @@
  * Polls GET /api/v1/session/{transactionId}/status every 3s for Twilio IVR outcome.
  */
 
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
   View,
   Text,
@@ -27,9 +27,10 @@ import { RiskFactorList } from '../components/RiskFactorList';
 import { formatINRCompact } from '../services/format';
 import { speak } from '../services/tts';
 import { useLanguage, toLang } from '../services/languageState';
-import { API_BASE_URL, SESSION_POLL_INTERVAL_MS } from '../services/config';
+import { useSeniorMode } from '../context/SeniorModeContext';
+import { simplifyExplanation } from '../i18n/simplifiedStrings';
+import { SESSION_POLL_INTERVAL_MS, apiUrl } from '../services/config';
 import {
-  NAVY,
   NAVY_LIGHT,
   INTERCEPT_RED,
   NEUTRAL_GRAY,
@@ -52,10 +53,20 @@ export function InterceptScreen({ route, navigation }: Props) {
   const { beneficiary, amount, riskScore, explanation, transactionId } = route.params;
   const { t } = useTranslation();
   const { currentLanguage } = useLanguage();
+  const { isSeniorMode, fontScale, scaleFont: sf } = useSeniorMode();
   const pulseAnim = useRef(new Animated.Value(1)).current;
   const [status, setStatus] = useState<SessionStatus>('waiting');
 
-  const factors = explanation && explanation.length > 0 ? explanation : DEFAULT_EXPLANATION;
+  const rawFactors = explanation && explanation.length > 0 ? explanation : DEFAULT_EXPLANATION;
+
+  // Senior Citizen Mode: rewrite raw SHAP factor names in plain language.
+  const factors = useMemo(
+    () =>
+      isSeniorMode
+        ? rawFactors.map(f => ({ ...f, factor: simplifyExplanation(f.factor) }))
+        : rawFactors,
+    [isSeniorMode, rawFactors]
+  );
 
   // ─── Disable ALL back navigation (hardware + gesture) ─────────────────────
   useEffect(() => {
@@ -92,7 +103,7 @@ export function InterceptScreen({ route, navigation }: Props) {
       try {
         // TODO(Shanteshwar): Confirm endpoint path and response shape
         const { data } = await axios.get(
-          `${API_BASE_URL}/api/v1/session/${transactionId}/status`
+          apiUrl(`/api/v1/session/${transactionId}/status`)
         );
         if (data?.status === 'RELEASED') setStatus('released');
         else if (data?.status === 'FROZEN') setStatus('frozen');
@@ -124,39 +135,87 @@ export function InterceptScreen({ route, navigation }: Props) {
         {/* Lock Icon */}
         <Animated.Text
           style={[styles.lockIcon, { transform: [{ scale: pulseAnim }] }]}
-          accessibilityLabel={`Risk score: ${riskScore} out of 100 — Hard Intercept`}
+          accessibilityLabel={
+            isSeniorMode
+              ? t('intercept.title')
+              : `Risk score: ${riskScore} out of 100 — Hard Intercept`
+          }
         >
           🔒
         </Animated.Text>
 
         {/* Title */}
-        <Text style={styles.title}>{t('intercept.title')}</Text>
+        <Text
+          style={[styles.title, { fontSize: sf(24) }]}
+          accessibilityRole="header"
+        >
+          {t('intercept.title')}
+        </Text>
 
         {/* Message */}
-        <Text style={styles.message}>
+        <Text
+          style={[styles.message, { fontSize: sf(15), lineHeight: sf(24) }]}
+          accessibilityRole="alert"
+        >
           {t('intercept.mainMessage', {
             beneficiary: beneficiary.name,
             amount: formatINRCompact(amount),
           })}
         </Text>
 
-        {/* Risk Score */}
-        <View style={styles.scoreTag}>
-          <Text style={styles.scoreLabel}>Risk Score</Text>
-          <Text style={styles.scoreValue}>{riskScore} / 100</Text>
-        </View>
+        {/* Risk meter.
+            Senior Citizen Mode → COLOUR-ONLY red bar, no numeric score at all.
+            Standard mode → the "NN / 100" score tag. */}
+        {isSeniorMode ? (
+          <View
+            testID="risk-meter-colour-only"
+            style={styles.seniorMeterTrack}
+            accessible={true}
+            accessibilityRole="image"
+            accessibilityLabel={t('intercept.title')}
+          >
+            <View style={styles.seniorMeterFill} />
+          </View>
+        ) : (
+          <View
+            style={styles.scoreTag}
+            accessible={true}
+            accessibilityRole="text"
+            accessibilityLabel={`Risk score ${riskScore} out of 100`}
+          >
+            <Text style={styles.scoreLabel}>Risk Score</Text>
+            <Text style={styles.scoreValue} testID="risk-score-text">{riskScore} / 100</Text>
+          </View>
+        )}
 
         {/* Twilio IVR Status */}
-        <View style={styles.statusBox}>
+        <View
+          style={styles.statusBox}
+          accessible={true}
+          accessibilityRole="text"
+          accessibilityLiveRegion="polite"
+          accessibilityLabel={statusText[status]}
+        >
           <Text style={styles.statusIcon}>📞</Text>
-          <Text style={[styles.statusText, { color: statusColor[status] }]}>
+          <Text style={[styles.statusText, { fontSize: sf(14), color: statusColor[status] }]}>
             {statusText[status]}
           </Text>
         </View>
 
         {/* SHAP Factor List (compact, shared component) */}
-        <Text style={styles.factorsTitle}>Contributing Risk Factors</Text>
-        <RiskFactorList factors={factors} variant="intercept" maxHeight={200} />
+        <Text
+          style={[styles.factorsTitle, { fontSize: sf(14) }]}
+          accessibilityRole="header"
+        >
+          {t('warning.factorsTitle')}
+        </Text>
+        <RiskFactorList
+          factors={factors}
+          variant="intercept"
+          maxHeight={200}
+          hidePoints={isSeniorMode}
+          fontScale={fontScale}
+        />
 
         {/* Cancel — the ONLY button. No path to PinScreen. */}
         <TouchableOpacity
@@ -164,11 +223,15 @@ export function InterceptScreen({ route, navigation }: Props) {
           style={styles.cancelBtn}
           onPress={() => navigation.navigate('Home')}
           activeOpacity={0.85}
+          accessible={true}
+          accessibilityRole="button"
+          accessibilityLabel={t('intercept.cancel')}
+          accessibilityHint="Closes this blocked payment and returns to the home screen"
         >
-          <Text style={styles.cancelBtnText}>Cancel Transaction</Text>
+          <Text style={[styles.cancelBtnText, { fontSize: sf(17) }]}>{t('intercept.cancel')}</Text>
         </TouchableOpacity>
 
-        <Text style={styles.footerNote}>
+        <Text style={[styles.footerNote, { fontSize: sf(11), lineHeight: sf(18) }]}>
           Your bank has been alerted. Evidence has been securely preserved.
         </Text>
       </ScrollView>
@@ -201,6 +264,21 @@ const styles = StyleSheet.create({
   },
   scoreLabel: { color: 'rgba(255,255,255,0.7)', fontSize: 12, letterSpacing: 1, textTransform: 'uppercase' },
   scoreValue: { color: WHITE, fontSize: 22, fontWeight: '900' },
+  // Senior Citizen Mode — colour-only risk meter (no numeric score)
+  seniorMeterTrack: {
+    width: '100%',
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: '#3A0A0A',
+    overflow: 'hidden',
+    marginBottom: 20,
+  },
+  seniorMeterFill: {
+    width: '100%',
+    height: '100%',
+    borderRadius: 16,
+    backgroundColor: INTERCEPT_RED,
+  },
   statusBox: {
     flexDirection: 'row',
     alignItems: 'center',

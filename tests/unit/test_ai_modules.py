@@ -34,10 +34,17 @@ class TestAudioFeatures:
         assert mfc.shape == (128, 128)
 
     def test_melspectrogram_normalised(self):
+        """
+        Features are normalised to [-1, 1], matching transforms.Normalize((0.5,), (0.5,)).
+        The CNN is trained on this range (see audio_features.FEATURE_VERSION 2); the
+        earlier [0, 1] contract left BatchNorm poorly conditioned.
+        """
         from models.audio_features import extract_melspectrogram
         mel = extract_melspectrogram(self._make_wav_bytes())
-        assert mel.min() >= 0.0
+        assert mel.min() >= -1.0
         assert mel.max() <= 1.0
+        # Guard against a silently all-zero / constant feature map
+        assert mel.max() - mel.min() > 0.1
 
     def test_npy_fallback(self, tmp_path):
         from models.audio_features import extract_melspectrogram

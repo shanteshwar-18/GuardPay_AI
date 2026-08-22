@@ -15,9 +15,19 @@ type Props = {
   /** 'warning' uses amber accents; 'intercept' uses red accents */
   variant: 'warning' | 'intercept';
   maxHeight?: number;
+  /** Senior Citizen Mode: hide the numeric "+N pts" badges entirely. */
+  hidePoints?: boolean;
+  /** Font multiplier (1.5 in Senior Citizen Mode). */
+  fontScale?: number;
 };
 
-export function RiskFactorList({ factors, variant, maxHeight = 200 }: Props) {
+export function RiskFactorList({
+  factors,
+  variant,
+  maxHeight = 200,
+  hidePoints = false,
+  fontScale = 1,
+}: Props) {
   const accentColor = variant === 'warning' ? WARNING_AMBER : INTERCEPT_RED;
 
   // Sort descending by points (highest risk first)
@@ -25,19 +35,38 @@ export function RiskFactorList({ factors, variant, maxHeight = 200 }: Props) {
 
   return (
     <ScrollView
-      style={[styles.container, { maxHeight }]}
+      style={[styles.container, { maxHeight: maxHeight * fontScale }]}
       nestedScrollEnabled
       showsVerticalScrollIndicator={false}
+      accessibilityRole="list"
+      accessibilityLabel="Risk factors, highest first"
     >
       {sorted.map((item, index) => (
-        <View key={index} style={styles.row}>
+        <View
+          key={index}
+          style={styles.row}
+          accessible={true}
+          accessibilityRole="text"
+          accessibilityLabel={
+            hidePoints
+              ? item.factor
+              : `${item.factor}. Adds ${item.points} risk points.`
+          }
+        >
           <View style={[styles.dot, { backgroundColor: accentColor }]} />
-          <Text style={styles.factorText} numberOfLines={2}>
+          <Text
+            style={[styles.factorText, { fontSize: Math.round(13 * fontScale), lineHeight: Math.round(18 * fontScale) }]}
+            numberOfLines={hidePoints ? 3 : 2}
+          >
             {item.factor}
           </Text>
-          <View style={[styles.badge, { backgroundColor: accentColor }]}>
-            <Text style={styles.badgeText}>+{item.points} pts</Text>
-          </View>
+          {!hidePoints && (
+            <View style={[styles.badge, { backgroundColor: accentColor }]}>
+              <Text style={[styles.badgeText, { fontSize: Math.round(11 * fontScale) }]}>
+                +{item.points} pts
+              </Text>
+            </View>
+          )}
         </View>
       ))}
     </ScrollView>

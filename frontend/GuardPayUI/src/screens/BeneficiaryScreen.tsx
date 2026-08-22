@@ -22,9 +22,11 @@ import {
   ScrollView,
 } from 'react-native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
+import { useTranslation } from 'react-i18next';
 import { RootStackParamList } from '../types/navigation';
 import { MOCK_KNOWN_BENEFICIARIES, MOCK_PAYEE_NAMES } from '../mock/mockData';
 import { normaliseUpiId } from '../services/format';
+import { useScaledFont } from '../context/SeniorModeContext';
 import {
   NAVY,
   NAVY_LIGHT,
@@ -44,6 +46,8 @@ type ResolvedState = {
 } | { resolved: false };
 
 export function BeneficiaryScreen({ navigation }: Props) {
+  const { t } = useTranslation();
+  const sf = useScaledFont();
   const [upiId, setUpiId] = useState('');
   const [resolvedState, setResolvedState] = useState<ResolvedState>({ resolved: false });
 
@@ -80,14 +84,21 @@ export function BeneficiaryScreen({ navigation }: Props) {
         style={{ flex: 1 }}
       >
         <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
-          <Text style={styles.heading}>Send Money</Text>
-          <Text style={styles.subheading}>Enter the UPI ID of the recipient</Text>
+          <Text
+            style={[styles.heading, { fontSize: sf(26) }]}
+            accessibilityRole="header"
+          >
+            {t('home.sendMoney')}
+          </Text>
+          <Text style={[styles.subheading, { fontSize: sf(14) }]}>
+            {t('beneficiary.inputPlaceholder')}
+          </Text>
 
           {/* UPI ID Input */}
           <View style={styles.inputRow}>
             <TextInput
               testID="upi-id-input"
-              style={styles.input}
+              style={[styles.input, { fontSize: sf(15) }]}
               placeholder="e.g. name@okaxis"
               placeholderTextColor={NEUTRAL_GRAY}
               value={upiId}
@@ -100,14 +111,23 @@ export function BeneficiaryScreen({ navigation }: Props) {
               keyboardType="email-address"
               onSubmitEditing={handleResolve}
               returnKeyType="done"
+              accessible={true}
+              accessibilityLabel={t('beneficiary.inputPlaceholder')}
+              accessibilityHint="Type the recipient's UPI address, then press Verify"
             />
             <TouchableOpacity
               testID="resolve-btn"
               style={styles.resolveBtn}
               onPress={handleResolve}
               activeOpacity={0.8}
+              accessible={true}
+              accessibilityRole="button"
+              accessibilityLabel={t('beneficiary.resolve')}
+              accessibilityHint="Looks up the name registered against this UPI ID"
             >
-              <Text style={styles.resolveBtnText}>Verify</Text>
+              <Text style={[styles.resolveBtnText, { fontSize: sf(14) }]}>
+                {t('beneficiary.resolve')}
+              </Text>
             </TouchableOpacity>
           </View>
 
@@ -119,27 +139,36 @@ export function BeneficiaryScreen({ navigation }: Props) {
                 styles.payeeCard,
                 resolvedState.isNew && styles.payeeCardNew,
               ]}
+              accessible={true}
+              accessibilityRole="summary"
+              accessibilityLiveRegion="polite"
+              accessibilityLabel={
+                `Paying ${resolvedState.name}, ${upiId}.` +
+                (resolvedState.isNew ? ` ${t('beneficiary.newPayee')}` : '')
+              }
             >
               <View style={styles.payeeRow}>
                 <View style={styles.payeeAvatar}>
-                  <Text style={styles.payeeAvatarText}>
+                  <Text style={[styles.payeeAvatarText, { fontSize: sf(20) }]}>
                     {resolvedState.name.charAt(0).toUpperCase()}
                   </Text>
                 </View>
                 <View style={styles.payeeInfo}>
-                  <Text style={styles.payeeName}>{resolvedState.name}</Text>
-                  <Text style={styles.payeeUpi}>{upiId}</Text>
+                  <Text style={[styles.payeeName, { fontSize: sf(16) }]}>{resolvedState.name}</Text>
+                  <Text style={[styles.payeeUpi, { fontSize: sf(12) }]}>{upiId}</Text>
                 </View>
                 {/* NEW badge — only shown for first-time payees */}
                 {resolvedState.isNew && (
                   <View testID="new-badge" style={styles.newBadge}>
-                    <Text style={styles.newBadgeText}>NEW</Text>
+                    <Text style={[styles.newBadgeText, { fontSize: sf(11) }]}>
+                      {t('badge.new')}
+                    </Text>
                   </View>
                 )}
               </View>
               {resolvedState.isNew && (
-                <Text style={styles.newWarning}>
-                  ⚠️ First-time payee — verify carefully before sending money
+                <Text style={[styles.newWarning, { fontSize: sf(12) }]}>
+                  ⚠️ {t('beneficiary.newPayee')}
                 </Text>
               )}
             </View>
@@ -152,8 +181,14 @@ export function BeneficiaryScreen({ navigation }: Props) {
               style={styles.continueBtn}
               onPress={handleContinue}
               activeOpacity={0.85}
+              accessible={true}
+              accessibilityRole="button"
+              accessibilityLabel={t('beneficiary.continue')}
+              accessibilityHint={`Continue to enter the amount to send to ${resolvedState.name}`}
             >
-              <Text style={styles.continueBtnText}>Continue →</Text>
+              <Text style={[styles.continueBtnText, { fontSize: sf(17) }]}>
+                {t('beneficiary.continue')} →
+              </Text>
             </TouchableOpacity>
           )}
         </ScrollView>

@@ -10,7 +10,7 @@
  * - Full WCAG 2.1 AA accessibility (accessibilityRole="timer", accessibilityLiveRegion="assertive")
  */
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import {
   View,
   Text,
@@ -21,12 +21,15 @@ import {
   Alert,
 } from 'react-native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
+import { useTranslation } from 'react-i18next';
 import { RootStackParamList } from '../types/navigation';
 import { NumericInput } from '../components/NumericInput';
 import { RiskFactorList } from '../components/RiskFactorList';
 import { speak, stopSpeaking } from '../services/tts';
 import { formatINRCompact } from '../services/format';
+import { useLanguage, toLang } from '../services/languageState';
 import { useSeniorMode } from '../context/SeniorModeContext';
+import { simplifyExplanation } from '../i18n/simplifiedStrings';
 import { NAVY, HOLD_RED, NEUTRAL_LIGHT, WHITE, NAVY_LIGHT } from '../theme/colors';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'Hold'>;
@@ -35,19 +38,34 @@ const HOLD_DURATION_SECONDS = 30;
 
 export function HoldScreen({ route, navigation }: Props) {
   const { beneficiary, amount, riskScore, explanation } = route.params;
+  const { t } = useTranslation();
+  const { currentLanguage } = useLanguage();
+  const { isSeniorMode, fontScale, scaleFont: sf } = useSeniorMode();
   const [secondsLeft, setSecondsLeft] = useState(HOLD_DURATION_SECONDS);
   const [isVerified, setIsVerified] = useState(false);
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
-  const { isSeniorMode } = useSeniorMode();
 
-  // Voice TTS warning on mount
+  // Senior Citizen Mode: rewrite raw SHAP factor names in plain language.
+  const factors = useMemo(
+    () =>
+      isSeniorMode
+        ? explanation.map(f => ({ ...f, factor: simplifyExplanation(f.factor) }))
+        : explanation,
+    [isSeniorMode, explanation]
+  );
+
+  // Voice TTS warning on mount — in the user's ACTUAL language, using the
+  // translated hold.mainMessage (available in all 4 languages).
   useEffect(() => {
-    const speechText = `Caution. This transaction of ${formatINRCompact(amount)} to ${beneficiary.name} is on hold due to elevated fraud risk. A thirty second cooling-off period is active.`;
-    speak(speechText, 'en');
+    const speechText = t('hold.mainMessage', {
+      beneficiary: beneficiary.name,
+      amount: formatINRCompact(amount),
+    });
+    speak(speechText, toLang(currentLanguage));
     return () => {
       stopSpeaking();
     };
-  }, [amount, beneficiary.name]);
+  }, [t, currentLanguage, amount, beneficiary.name]);
 
   // Countdown timer — cleans up on unmount
   useEffect(() => {
@@ -70,30 +88,31 @@ export function HoldScreen({ route, navigation }: Props) {
   useEffect(() => {
     if (secondsLeft === 0 && !isVerified) {
       Alert.alert(
-        'Transaction Cancelled',
-        'Cooling-off period expired. Returning to home screen.',
-        [{ text: 'OK', onPress: () => navigation.navigate('Home') }]
+        t('hold.cancelledTitle'),
+        t('hold.cancelledBody'),
+        [{ text: t('common.ok'), onPress: () => navigation.navigate('Home') }]
       );
     }
-  }, [secondsLeft, isVerified, navigation]);
+  }, [secondsLeft, isVerified, navigation, t]);
 
   // Handle OTP completion
   const handleOTPComplete = (_otp: string) => {
     if (intervalRef.current) clearInterval(intervalRef.current);
     setIsVerified(true);
     Alert.alert(
-      'Verification Successful',
-      'Step-up verification complete. You may now enter your UPI PIN.',
+      t('hold.verifiedTitle'),
+      t('hold.verifiedBody'),
       [
         {
-          text: 'Continue',
+          text: t('common.continue'),
           onPress: () =>
+            // Legacy route: Pin now takes a RiskTierId and mints/expects a session id.
             navigation.navigate('Pin', {
+              sessionId: '',
               beneficiary,
               amount,
               riskScore,
-              tier: 'ADAPTIVE_HOLD',
-              explanation,
+              tier: 'HOLD',
             }),
         },
       ]
@@ -109,9 +128,20 @@ export function HoldScreen({ route, navigation }: Props) {
         {/* Header */}
         <View style={styles.header}>
           <Text style={styles.headerIcon}>🛑</Text>
-          <Text style={styles.title}>Payment on Hold</Text>
-          <Text style={styles.subtitle}>
-            {formatINRCompact(amount)} to {beneficiary.name}
+          <Text
+            style={[styles.title, { fontSize: sf(24) }]}
+            accessibilityRole="header"
+          >
+            {t('hold.title')}
+          </Text>
+          <Text
+            style={[styles.subtitle, { fontSize: sf(14) }]}
+            accessibilityRole="alert"
+          >
+            {t('hold.mainMessage', {
+              beneficiary: beneficiary.name,
+              amount: formatINRCompact(amount),
+            })}
           </Text>
         </View>
 
@@ -123,30 +153,40 @@ export function HoldScreen({ route, navigation }: Props) {
           accessibilityLiveRegion="assertive"
           accessibilityLabel={`Cooling-off countdown: ${secondsLeft} seconds remaining`}
         >
-          <Text style={styles.timerLabel}>COOLING-OFF PERIOD</Text>
-          <Text style={styles.timerValue}>
+          <Text style={[styles.timerLabel, { fontSize: sf(11) }]}>{t('hold.coolingOff')}</Text>
+          <Text style={[styles.timerValue, { fontSize: sf(52) }]}>
             {String(Math.floor(secondsLeft / 60)).padStart(2, '0')}:
             {String(secondsLeft % 60).padStart(2, '0')}
           </Text>
           <View style={styles.timerBar}>
             <View style={[styles.timerBarFill, { width: `${progress * 100}%` }]} />
           </View>
-          <Text style={styles.timerNote}>
-            {secondsLeft > 0
-              ? 'Please review risk factors below or enter OTP to continue'
-              : 'Time expired — transaction cancelled'}
+          <Text style={[styles.timerNote, { fontSize: sf(12) }]}>
+            {secondsLeft > 0 ? t('hold.reviewNote') : t('hold.expiredNote')}
           </Text>
         </View>
 
         {/* Risk Factor Breakdown */}
         <View style={styles.factorsSection}>
-          <RiskFactorList factors={explanation} variant="intercept" />
+          <RiskFactorList
+            factors={factors}
+            variant="intercept"
+            hidePoints={isSeniorMode}
+            fontScale={fontScale}
+          />
         </View>
 
         {/* Step-Up Verification */}
         <View style={styles.verifySection}>
-          <Text style={styles.verifyTitle}>Step-Up Identity Verification</Text>
-          <Text style={styles.verifySubtitle}>Enter the 4-digit code sent to your mobile</Text>
+          <Text
+            style={[styles.verifyTitle, { fontSize: sf(16) }]}
+            accessibilityRole="header"
+          >
+            {t('hold.verifyTitle')}
+          </Text>
+          <Text style={[styles.verifySubtitle, { fontSize: sf(13) }]}>
+            {t('hold.verifySubtitle')}
+          </Text>
           <NumericInput
             length={4}
             onComplete={handleOTPComplete}
@@ -156,10 +196,10 @@ export function HoldScreen({ route, navigation }: Props) {
         </View>
 
         {/* Evidence Preserved Notice */}
-        <View style={styles.evidenceNotice}>
+        <View style={styles.evidenceNotice} accessible={true} accessibilityRole="text">
           <Text style={styles.evidenceIcon}>🔒</Text>
-          <Text style={styles.evidenceText}>
-            Encrypted audit record (AES-256) logged with transaction ID for customer dispute protection.
+          <Text style={[styles.evidenceText, { fontSize: sf(12), lineHeight: sf(18) }]}>
+            {t('hold.evidenceNotice')}
           </Text>
         </View>
       </ScrollView>
