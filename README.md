@@ -268,6 +268,3 @@ cp frontend/GuardPayUI/.env.example frontend/GuardPayUI/.env
 
 ---
 
-## 📄 License
-
-MIT © Team GuardPay — Bharti Hackathon 2026
